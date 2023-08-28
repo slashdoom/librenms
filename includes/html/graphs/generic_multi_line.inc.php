@@ -17,9 +17,9 @@ require 'includes/html/graphs/common.inc.php';
 
 $stacked = generate_stacked_graphs();
 
-$descr_len = $descr_len ?? 12;
-$unitlen = $unitlen ?? 0;
-$rrd_optionsb = '';
+if (! isset($descr_len)) {
+    $descr_len = 12;
+}
 
 if ($nototal) {
     $descr_len += '2';
@@ -56,7 +56,7 @@ foreach ($rrd_list as $rrd) {
 
     $rrd_options .= ' DEF:' . $id . "=$filename:$ds:AVERAGE";
 
-    if (! empty($simple_rrd)) {
+    if ($simple_rrd) {
         $rrd_options .= ' CDEF:' . $id . 'min=' . $id . ' ';
         $rrd_options .= ' CDEF:' . $id . 'max=' . $id . ' ';
     } else {
@@ -64,7 +64,7 @@ foreach ($rrd_list as $rrd) {
         $rrd_options .= ' DEF:' . $id . "max=$filename:$ds:MAX";
     }
 
-    if (! empty($rrd['invert'])) {
+    if ($rrd['invert']) {
         $rrd_options .= ' CDEF:' . $id . 'i=' . $id . ',' . $stacked['stacked'] . ',*';
 
         $rrd_optionsb .= ' LINE1.25:' . $id . 'i#' . $colour . ":'$descr'";

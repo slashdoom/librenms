@@ -29,7 +29,7 @@ use App\Models\Device;
 use App\Models\Eventlog;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
-use LibreNMS\Enum\Severity;
+use LibreNMS\Enum\Alert;
 use LibreNMS\Util\IP;
 
 class Trap
@@ -52,9 +52,7 @@ class Trap
         $this->hostname = array_shift($lines);
 
         $line = array_shift($lines);
-        if ($line) {
-            preg_match('/\[([0-9.:a-fA-F]+)]/', $line, $matches);
-        }
+        preg_match('/\[([0-9.:a-fA-F]+)]/', $line, $matches);
         $this->ip = $matches[1] ?? '';
 
         // parse the oid data
@@ -130,7 +128,7 @@ class Trap
     /**
      * Log this trap in the eventlog with the given message
      */
-    public function log(string $message, Severity $severity = Severity::Info, string $type = 'trap', int|null|string $reference = null): void
+    public function log(string $message, int $severity = Alert::INFO, string $type = 'trap', int|null|string $reference = null): void
     {
         Eventlog::log($message, $this->getDevice(), $type, $severity, $reference);
     }

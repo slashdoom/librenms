@@ -3,7 +3,7 @@
 use App\Models\DeviceGraph;
 use Illuminate\Support\Str;
 use LibreNMS\Config;
-use LibreNMS\Enum\Severity;
+use LibreNMS\Enum\Alert;
 use LibreNMS\Exceptions\JsonAppBase64DecodeException;
 use LibreNMS\Exceptions\JsonAppBlankJsonException;
 use LibreNMS\Exceptions\JsonAppExtendErroredException;
@@ -35,7 +35,7 @@ function bulk_sensor_snmpget($device, $sensors)
 }
 
 /**
- * @param  $device
+ * @param $device
  * @param  string  $type  type/class of sensor
  * @return array
  */
@@ -131,42 +131,29 @@ function poll_sensor($device, $class)
 }//end poll_sensor()
 
 /**
- * @param  $device
- * @param  $all_sensors
+ * @param $device
+ * @param $all_sensors
  */
 function record_sensor_data($device, $all_sensors)
 {
     $supported_sensors = [
-        'airflow'        => 'cfm',
-        'ber'            => '',
-        'bitrate'        => 'bps',
-        'charge'         => '%',
-        'chromatic_dispersion' => 'ps/nm',
-        'cooling'        => 'W',
-        'count'          => '',
-        'current'        => 'A',
-        'delay'          => 's',
-        'dbm'            => 'dBm',
-        'eer'            => 'eer',
-        'fanspeed'       => 'rpm',
-        'frequency'      => 'Hz',
-        'humidity'       => '%',
-        'load'           => '%',
-        'loss'           => '%',
-        'percent'        => '%',
-        'power'          => 'W',
-        'power_consumed' => 'kWh',
-        'power_factor'   => '',
-        'pressure'       => 'kPa',
-        'quality_factor' => 'dB',
-        'runtime'        => 'Min',
-        'signal'         => 'dBm',
-        'snr'            => 'SNR',
-        'state'          => '#',
-        'temperature'    => 'C',
-        'tv_signal'      => 'dBmV',
-        'voltage'        => 'V',
-        'waterflow'      => 'l/m',
+        'current'     => 'A',
+        'frequency'   => 'Hz',
+        'runtime'     => 'Min',
+        'humidity'    => '%',
+        'fanspeed'    => 'rpm',
+        'power'       => 'W',
+        'voltage'     => 'V',
+        'temperature' => 'C',
+        'dbm'         => 'dBm',
+        'charge'      => '%',
+        'load'        => '%',
+        'state'       => '#',
+        'signal'      => 'dBm',
+        'airflow'     => 'cfm',
+        'snr'         => 'SNR',
+        'pressure'    => 'kPa',
+        'cooling'     => 'W',
     ];
 
     foreach ($all_sensors as $sensor) {
@@ -353,7 +340,7 @@ function poll_device($device, $force_module = false)
                 } catch (Throwable $e) {
                     // isolate module exceptions so they don't disrupt the polling process
                     Log::error("%rError polling $module module for {$device['hostname']}.%n $e", ['color' => true]);
-                    \App\Models\Eventlog::log("Error polling $module module. Check log file for more details.", $device['device_id'], 'poller', Severity::Error);
+                    \App\Models\Eventlog::log("Error polling $module module. Check log file for more details.", $device['device_id'], 'poller', Alert::ERROR);
                     report($e);
 
                     // Re-throw exception if we're in CI
@@ -506,23 +493,23 @@ function update_application($app, $response, $metrics = [], $status = '')
 
         switch ($app->app_state) {
             case 'OK':
-                $severity = Severity::Ok;
+                $severity = Alert::OK;
                 $event_msg = 'changed to OK';
                 break;
             case 'ERROR':
-                $severity = Severity::Error;
+                $severity = Alert::ERROR;
                 $event_msg = 'ends with ERROR';
                 break;
             case 'LEGACY':
-                $severity = Severity::Warning;
+                $severity = Alert::WARNING;
                 $event_msg = 'Client Agent is deprecated';
                 break;
             case 'UNSUPPORTED':
-                $severity = Severity::Error;
+                $severity = Alert::ERROR;
                 $event_msg = 'Client Agent Version is not supported';
                 break;
             default:
-                $severity = Severity::Unknown;
+                $severity = Alert::UNKNOWN;
                 $event_msg = 'has UNKNOWN state';
                 break;
         }

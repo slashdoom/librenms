@@ -38,24 +38,46 @@ use Log;
 
 class SnmpQueryMock implements SnmpQueryInterface
 {
-    private static ?array $cache = null;
-    private Device $device;
-    private string $context = '';
-    private ?string $mibDir = null;
-    private array $mibs = [];
-    private bool $numeric = false;
-    private bool $hideMib = false;
-    private array $options = [];
-    private bool $abort = false;
+    /**
+     * @var array
+     */
+    private static $cache;
 
-    public function __construct()
-    {
-        $this->device = DeviceCache::getPrimary();
-    }
+    /**
+     * @var Device
+     */
+    private $device;
+    /**
+     * @var string
+     */
+    private $context;
+    /**
+     * @var string|null
+     */
+    private $mibDir;
+    /**
+     * @var bool
+     */
+    private $numeric = false;
+    /**
+     * @var bool
+     */
+    private $hideMib = false;
+    /**
+     * @var array|mixed
+     */
+    private $options = [];
+    /**
+     * @var bool
+     */
+    private $abort = false;
 
     public static function make(): SnmpQueryInterface
     {
-        return new static;
+        $new = new static;
+        $new->device = DeviceCache::getPrimary();
+
+        return $new;
     }
 
     public function device(Device $device): SnmpQueryInterface
@@ -79,7 +101,7 @@ class SnmpQueryMock implements SnmpQueryInterface
         return $this;
     }
 
-    public function translate(string $oid): string
+    public function translate(string $oid, ?string $mib = null): string
     {
         // call real snmptranslate
         $options = $this->options;
@@ -92,9 +114,8 @@ class SnmpQueryMock implements SnmpQueryInterface
 
         return NetSnmpQuery::make()
             ->mibDir($this->mibDir)
-            ->mibs($this->mibs)
             ->options($options)
-            ->translate($oid);
+            ->translate($oid, $mib);
     }
 
     public function abortOnFailure(): SnmpQueryInterface
@@ -134,17 +155,6 @@ class SnmpQueryMock implements SnmpQueryInterface
     public function options($options = []): SnmpQueryInterface
     {
         $this->options = $options === null ? [] : Arr::wrap($options);
-
-        return $this;
-    }
-
-    /**
-     * Set MIBs to use for this query. Base mibs are included by default.
-     * They will be appended to existing mibs unless $append is set to false.
-     */
-    public function mibs(array $mibs, bool $append = true): SnmpQueryInterface
-    {
-        $this->mibs = $append ? array_merge($this->mibs, $mibs) : $mibs;
 
         return $this;
     }
@@ -278,7 +288,7 @@ class SnmpQueryMock implements SnmpQueryInterface
     private function outputLine(string $oid, string $num_oid, string $type, string $data): string
     {
         if ($type == 6) {
-            $data = $this->numeric ? ".$data" : $this->mibs($this->extractMib($oid))->translate($data);
+            $data = $this->numeric ? ".$data" : $this->translate($data, $this->extractMib($oid));
         }
 
         if ($this->numeric) {
@@ -297,11 +307,12 @@ class SnmpQueryMock implements SnmpQueryInterface
      * The leading dot is ommited by default to be compatible with snmpsim
      *
      * @param  string  $oid  the oid to tranlslate
+     * @param  string  $mib  mib to use
      * @return string the oid in numeric format (1.3.4.5)
      *
      * @throws Exception Could not translate the oid
      */
-    private function translateNumber($oid)
+    private function translateNumber($oid, $mib = null)
     {
         // optimizations (35s -> 1.6s on my laptop)
         switch ($oid) {
@@ -326,9 +337,11 @@ class SnmpQueryMock implements SnmpQueryInterface
         }
 
         $options = ['-IR'];
+        if ($mib) {
+            $options[] = "-m $mib";
+        }
 
         $number = NetSnmpQuery::make()->mibDir($this->mibDir)
-            ->mibs($this->mibs)
             ->options(array_merge($options, $this->options))->numeric()->translate($oid);
 
         if (empty($number)) {
@@ -349,12 +362,12 @@ class SnmpQueryMock implements SnmpQueryInterface
         return $community;
     }
 
-    private function extractMib(string $oid): array
+    private function extractMib(string $oid): ?string
     {
         if (Str::contains($oid, '::')) {
-            return [explode('::', $oid, 2)[0]];
+            return explode('::', $oid, 2)[0];
         }
 
-        return [];
+        return null;
     }
 }

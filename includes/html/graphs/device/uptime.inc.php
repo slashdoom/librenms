@@ -9,10 +9,6 @@ $ds = 'uptime';
 $colours = 'greens';
 $float_precision = 3;
 
-$descr = 'Uptime';
-
-$munge = true;
-
-$unit_text = 'Days';
+$descr = '';
 
 require 'includes/html/graphs/generic_stats.inc.php';

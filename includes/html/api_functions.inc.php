@@ -17,7 +17,6 @@ use App\Models\Availability;
 use App\Models\Device;
 use App\Models\DeviceGroup;
 use App\Models\DeviceOutage;
-use App\Models\Location;
 use App\Models\MplsSap;
 use App\Models\MplsService;
 use App\Models\OspfPort;
@@ -109,7 +108,6 @@ function api_get_graph(Request $request, array $additional = [])
             'noagg',
             'inverse',
             'previous',
-            'duration',
         ]);
 
         $graph = Graph::get([
@@ -250,24 +248,6 @@ function get_graph_generic_by_hostname(Request $request)
     });
 }
 
-function get_graph_by_service(Request $request)
-{
-    $vars = [];
-    $vars['id'] = $request->route('id');
-    $vars['type'] = 'service_graph';
-    $vars['ds'] = $request->route('datasource');
-
-    $hostname = $request->route('hostname');
-    // use hostname as device_id if it's all digits
-    $device_id = ctype_digit($hostname) ? $hostname : getidbyname($hostname);
-    $device = device_by_id_cache($device_id);
-    $vars['device'] = $device['device_id'];
-
-    return check_device_permission($device_id, function () use ($request, $vars) {
-        return api_get_graph($request, $vars);
-    });
-}
-
 function list_locations()
 {
     $locations = dbFetchRows('SELECT `locations`.* FROM `locations` WHERE `locations`.`location` IS NOT NULL');
@@ -372,8 +352,8 @@ function list_devices(Illuminate\Http\Request $request)
         $sql = '`d`.`type`=?';
         $param[] = $query;
     } elseif ($type == 'display') {
-        $sql = '`d`.`display` LIKE ?';
-        $param[] = "%$query%";
+        $sql = '`d`.`display`=?';
+        $param[] = $query;
     } else {
         $sql = '1';
     }
@@ -2444,49 +2424,10 @@ function list_fdb(Illuminate\Http\Request $request)
            ->get();
 
     if ($fdb->isEmpty()) {
-        return api_error(404, 'Fdb entry does not exist');
+        return api_error(404, 'Fdb do not exist');
     }
 
     return api_success($fdb, 'ports_fdb');
-}
-
-function list_fdb_detail(Illuminate\Http\Request $request)
-{
-    $macAddress = Rewrite::macToHex((string) $request->route('mac'));
-
-    $rules = [
-        'macAddress' => 'required|string|regex:/^[0-9a-fA-F]{12}$/',
-    ];
-
-    $validate = Validator::make(['macAddress' => $macAddress], $rules);
-    if ($validate->fails()) {
-        return api_error(422, $validate->messages());
-    }
-
-    $extras = ['mac' => Rewrite::readableMac($macAddress),  'mac_oui' => Rewrite::readableOUI($macAddress)];
-
-    $fdb = PortsFdb::hasAccess(Auth::user())
-           ->when(! empty($macAddress), function (Builder $query) use ($macAddress) {
-               return $query->leftJoin('ports', 'ports_fdb.port_id', 'ports.port_id')
-                      ->leftJoin('devices', 'ports_fdb.device_id', 'devices.device_id')
-                      ->where('mac_address', $macAddress)
-                      ->orderBy('ports_fdb.updated_at', 'desc')
-                      ->select('devices.hostname', 'ports.ifName', 'ports_fdb.updated_at');
-           })
-           ->limit(1000)->get();
-
-    if (count($fdb) == 0) {
-        return api_error(404, 'Fdb entry does not exist');
-    }
-
-    foreach ($fdb as $i => $fdb_entry) {
-        if ($fdb_entry['updated_at']) {
-            $fdb[$i]['last_seen'] = $fdb_entry['updated_at']->diffForHumans();
-            $fdb[$i]['updated_at'] = $fdb_entry['updated_at']->toDateTimeString();
-        }
-    }
-
-    return api_success($fdb, 'ports_fdb', null, 200, count($fdb), $extras);
 }
 
 function list_sensors()
@@ -2900,20 +2841,6 @@ function edit_location(Illuminate\Http\Request $request)
     }
 
     return api_error(500, 'Failed to update location');
-}
-
-function get_location(Illuminate\Http\Request $request)
-{
-    $location = $request->route('location_id_or_name');
-    if (empty($location)) {
-        return api_error(400, 'No location has been provided to get');
-    }
-    $data = ctype_digit($location) ? Location::find($location_id) : Location::where('location', $location)->first();
-    if (empty($data)) {
-        return api_error(404, 'Location does not exist');
-    }
-
-    return api_success($data, 'get_location');
 }
 
 function get_location_id_by_name($location)

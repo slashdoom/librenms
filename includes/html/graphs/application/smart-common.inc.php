@@ -11,10 +11,10 @@ $scale_min = 0;
 if (isset($vars['disk'])) {
     $disks = [$vars['disk']];
 } else {
-    $disks = array_keys($app->data['disks']);
+    $disks = Rrd::getRrdApplicationArrays($device, $app->app_id, $name);
 }
 
-$smart_enhancements = ['id9', 'maxtemp', 'id232'];
+$smart_enhancements = ['id9'];
 
 $int = 0;
 $rrd_list = [];

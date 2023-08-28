@@ -29,7 +29,6 @@
 namespace LibreNMS\Snmptrap\Handlers;
 
 use App\Models\Device;
-use LibreNMS\Enum\Severity;
 use LibreNMS\Interfaces\SnmptrapHandler;
 use LibreNMS\Snmptrap\Trap;
 
@@ -50,11 +49,13 @@ class OspfNbrStateChange implements SnmptrapHandler
 
         $ospfNbr->ospfNbrState = $trap->getOidData($trap->findOid('OSPF-MIB::ospfNbrState'));
 
-        $severity = match ($ospfNbr->ospfNbrState) {
-            'full' => Severity::Ok,
-            'down' => Severity::Error,
-            default => Severity::Warning,
-        };
+        $severity = 4;
+
+        if ($ospfNbr->ospfNbrState == 'full') {
+            $severity = 1;
+        } elseif ($ospfNbr->ospfNbrState == 'down') {
+            $severity = 5;
+        }
 
         $trap->log("OSPF neighbor $ospfNbrIpAddr changed state to $ospfNbr->ospfNbrState", $severity);
 

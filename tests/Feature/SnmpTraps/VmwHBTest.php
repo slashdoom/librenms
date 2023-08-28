@@ -28,7 +28,6 @@
 namespace LibreNMS\Tests\Feature\SnmpTraps;
 
 use App\Models\Device;
-use LibreNMS\Enum\Severity;
 
 class VmwHBTest extends SnmpTrapTestCase
 {
@@ -46,7 +45,7 @@ SNMP-COMMUNITY-MIB::snmpTrapCommunity.0 \"public\"
 SNMPv2-MIB::snmpTrapEnterprise.0 VMWARE-PRODUCTS-MIB::vmwESX",
             "Heartbeat from guest $guest->hostname lost",
             'Could not handle VmwVmHBLostTrap',
-            [Severity::Warning],
+            [4],
         );
     }
 
@@ -64,7 +63,7 @@ SNMP-COMMUNITY-MIB::snmpTrapCommunity.0 \"public\"
 SNMPv2-MIB::snmpTrapEnterprise.0 VMWARE-PRODUCTS-MIB::vmwESX",
             "Heartbeat from guest $guest->hostname detected",
             'Could not handle VmwVmHBDetectedTrap',
-            [Severity::Ok],
+            [1],
         );
     }
 }

@@ -32,7 +32,6 @@ use Cache;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use LibreNMS\Config;
-use LibreNMS\Enum\Severity;
 
 class Checks
 {
@@ -52,7 +51,7 @@ class Checks
         $user = Auth::user();
 
         if ($user->isAdmin()) {
-            $notifications = Notification::isUnread($user)->where('severity', '>', Severity::Ok->value)->get();
+            $notifications = Notification::isUnread($user)->where('severity', '>', \LibreNMS\Enum\Alert::OK)->get();
             foreach ($notifications as $notification) {
                 flash()
                     ->using('template.librenms')

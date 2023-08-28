@@ -1,7 +1,5 @@
 <?php
 
-use LibreNMS\Util\Number;
-
 echo 'RFC1628 ';
 
 $input_freq = snmpwalk_group($device, 'upsInputFrequency', 'UPS-MIB');
@@ -16,7 +14,6 @@ foreach ($input_freq as $index => $data) {
         $data['upsInputFrequency'] = $data['upsInputFrequency'][0];
         $freq_oid .= '.0';
     }
-    $data['upsInputFrequency'] = Number::cast($data['upsInputFrequency']);
 
     discover_sensor(
         $valid['sensor'],

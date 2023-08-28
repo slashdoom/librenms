@@ -3,12 +3,10 @@ basic detection for a new OS.
 
 ### Discovery
 
-OS discovery is how LibreNMS detects which OS should be used for a device.
-Generally detection should use sysObjectID or sysDescr, but you can also
-snmpget an oid and check for a value.  snmpget is discouraged because it slows
-down all os detections, not just the added os.
+Discovery is now all done by yaml files, you do not and should not
+create a php file for discovery.
 
-To begin, create the new OS file which should be called
+Create the new OS file which should be called
 `includes/definitions/pulse.yaml`. Here is a working example:
 
 ```yaml
@@ -162,7 +160,7 @@ more complex collection is required.
 - `<field>` specify an oid or list of oids to attempt to pull the data from, the first non-empty response will be used
 - `<field>_regex` parse the value out of the returned oid data, must use a named group
 - `<field>_template` combine multiple oid results together to create a final string value.  The result is trimmed.
-- `<field>_replace` An array of replacements ['search regex', 'replace'] or regex to remove
+- `<field>_replace` An array of replacements ['find', 'replace'] or strings to remove
 - `hardware_mib` MIB used to translate sysObjectID to get hardware. hardware_regex can process the result.
 
 ```yaml

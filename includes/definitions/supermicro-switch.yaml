@@ -9,6 +9,5 @@ discovery:
     -
         sysDescr_regex:
             - '/^Supermicro Switch/'
-            - '/^SuperSwitch/'
             - '/^SSE-/'
             - '/^SBM-/'

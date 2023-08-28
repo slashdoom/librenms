@@ -29,7 +29,6 @@ use App\Models\BgpPeer;
 use App\Models\Device;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use LibreNMS\Config;
-use LibreNMS\Enum\Severity;
 use LibreNMS\Tests\Traits\RequiresDatabase;
 
 class BgpTrapTest extends SnmpTrapTestCase
@@ -55,7 +54,7 @@ BGP4-MIB::bgpPeerLastError.$bgppeer->bgpPeerIdentifier \"04 00 \"
 BGP4-MIB::bgpPeerState.$bgppeer->bgpPeerIdentifier established\n",
             "SNMP Trap: BGP Up $bgppeer->bgpPeerIdentifier " . get_astext($bgppeer->bgpPeerRemoteAs) . ' is now established',
             'Could not handle bgpEstablished',
-            [Severity::Ok, 'bgpPeer', $bgppeer->bgpPeerIdentifier],
+            [1, 'bgpPeer', $bgppeer->bgpPeerIdentifier],
             $device,
         );
 
@@ -81,7 +80,7 @@ BGP4-MIB::bgpPeerLastError.$bgppeer->bgpPeerIdentifier \"04 00 \"
 BGP4-MIB::bgpPeerState.$bgppeer->bgpPeerIdentifier idle\n",
             "SNMP Trap: BGP Down $bgppeer->bgpPeerIdentifier " . get_astext($bgppeer->bgpPeerRemoteAs) . ' is now idle',
             'Could not handle bgpBackwardTransition',
-            [Severity::Error, 'bgpPeer', $bgppeer->bgpPeerIdentifier],
+            [5, 'bgpPeer', $bgppeer->bgpPeerIdentifier],
             $device,
         );
 

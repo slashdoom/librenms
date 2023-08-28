@@ -22,5 +22,6 @@ parameters:
         - misc
         - resources
         - routes
+        - sql-schema
         - storage
         - tests

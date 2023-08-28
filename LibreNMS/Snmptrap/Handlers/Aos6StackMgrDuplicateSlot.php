@@ -31,7 +31,6 @@
 namespace LibreNMS\Snmptrap\Handlers;
 
 use App\Models\Device;
-use LibreNMS\Enum\Severity;
 use LibreNMS\Interfaces\SnmptrapHandler;
 use LibreNMS\Snmptrap\Trap;
 
@@ -48,6 +47,6 @@ class Aos6StackMgrDuplicateSlot implements SnmptrapHandler
     public function handle(Device $device, Trap $trap)
     {
         $slot_nr = $trap->getOidData($trap->findOid('ALCATEL-IND1-STACK-MANAGER-MIB::alaStackMgrSlotNINumber'));
-        $trap->log("Stack member $slot_nr is duplicated.", Severity::Error);
+        $trap->log("Stack member $slot_nr is duplicated.", 5);
     }
 }

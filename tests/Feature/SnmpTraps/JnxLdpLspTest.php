@@ -30,7 +30,6 @@ namespace LibreNMS\Tests\Feature\SnmpTraps;
 use App\Models\Device;
 use App\Models\Ipv4Address;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
-use LibreNMS\Enum\Severity;
 use LibreNMS\Tests\Traits\RequiresDatabase;
 
 class JnxLdpLspTest extends SnmpTrapTestCase
@@ -54,7 +53,7 @@ JUNIPER-LDP-MIB::jnxLdpInstanceName.0 \"test instance down\"
 SNMPv2-MIB::snmpTrapEnterprise.0 JUNIPER-CHASSIS-DEFINES-MIB::jnxProductNameMX480",
             "LDP session test instance down from $device->ip to $ipv4->ipv4_address has gone down due to topologyChanged",
             'Could not handle JnxLdpLspDown trap',
-            [Severity::Warning],
+            [4],
             $device,
         );
     }
@@ -74,7 +73,7 @@ JUNIPER-LDP-MIB::jnxLdpInstanceName.0 \"test instance up\"
 SNMPv2-MIB::snmpTrapEnterprise.0 JUNIPER-CHASSIS-DEFINES-MIB::jnxProductNameMX480",
             "LDP session test instance up from $device->ip to $ipv4->ipv4_address is now up.",
             'Could not handle JnxLdpLspUp trap',
-            [Severity::Ok],
+            [1],
             $device,
         );
     }

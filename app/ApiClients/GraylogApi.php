@@ -34,21 +34,26 @@ class GraylogApi
     private \Illuminate\Http\Client\PendingRequest $client;
     private string $api_prefix = '';
 
-    public function __construct()
+    public function __construct(array $config = [])
     {
         if (version_compare(Config::get('graylog.version', '2.4'), '2.1', '>=')) {
             $this->api_prefix = '/api';
         }
 
-        $base_uri = Config::get('graylog.server');
-        if ($port = Config::get('graylog.port')) {
-            $base_uri .= ':' . $port;
+        if (empty($config)) {
+            $base_uri = Config::get('graylog.server');
+            if ($port = Config::get('graylog.port')) {
+                $base_uri .= ':' . $port;
+            }
+
+            $config = [
+                'base_uri' => $base_uri,
+                'auth' => [Config::get('graylog.username'), Config::get('graylog.password')],
+                'headers' => ['Accept' => 'application/json'],
+            ];
         }
 
-        $this->client = Http::client()
-            ->baseUrl($base_uri)
-            ->withBasicAuth(Config::get('graylog.username'), Config::get('graylog.password'))
-            ->acceptJson();
+        $this->client = Http::client()->withOptions($config);
     }
 
     public function getStreams(): array
@@ -87,7 +92,7 @@ class GraylogApi
             'filter' => $filter,
         ];
 
-        $response = $this->client->get($uri, $data)->throw();
+        $response = $this->client->get($uri, $data);
 
         return $response->json() ?: [];
     }
@@ -120,7 +125,6 @@ class GraylogApi
             $device->hostname,
             $device->displayName(),
             $device->ip,
-            $device->sysName,
         ]);
 
         if (Config::get('graylog.match-any-address')) {

@@ -25,8 +25,6 @@
 
 namespace LibreNMS\Tests\Feature\SnmpTraps;
 
-use LibreNMS\Enum\Severity;
-
 class AdvaDyingGaspTrapTest extends SnmpTrapTestCase
 {
     public function testDyingGasp(): void
@@ -39,7 +37,7 @@ SNMPv2-MIB::snmpTrapOID.0 CM-SYSTEM-MIB::cmSnmpDyingGaspTrap
 TRAP,
             'Dying Gasp received',
             'Could not handle cmSnmpDyingGaspTrap',
-            [Severity::Error],
+            [5],
         );
     }
 }

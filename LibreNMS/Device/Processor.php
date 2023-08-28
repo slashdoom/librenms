@@ -62,10 +62,10 @@ class Processor extends Model implements DiscoveryModule, PollerModule, Discover
      * @param  int|string  $index
      * @param  string  $description
      * @param  int  $precision  The returned value will be divided by this number (should be factor of 10) If negative this oid returns idle cpu
-     * @param  int|null  $current_usage
-     * @param  int|null  $warn_percent
-     * @param  int|null  $entPhysicalIndex
-     * @param  int|null  $hrDeviceIndex
+     * @param  int  $current_usage
+     * @param  int  $warn_percent
+     * @param  int  $entPhysicalIndex
+     * @param  int  $hrDeviceIndex
      * @return static
      */
     public static function discover(
@@ -119,19 +119,19 @@ class Processor extends Model implements DiscoveryModule, PollerModule, Discover
 
     public static function fromYaml(OS $os, $index, array $data)
     {
-        $precision = empty($data['precision']) ? 1 : $data['precision'];
+        $precision = $data['precision'] ?: 1;
 
         return static::discover(
-            empty($data['type']) ? $os->getName() : $data['type'],
+            $data['type'] ?: $os->getName(),
             $os->getDeviceId(),
             $data['num_oid'],
             isset($data['index']) ? $data['index'] : $index,
-            empty($data['descr']) ? 'Processor' : trim($data['descr']),
+            $data['descr'] ? trim($data['descr']) : 'Processor',
             $precision,
             static::processData($data['value'], $precision),
-            $data['warn_percent'] ?? null,
-            $data['entPhysicalIndex'] ?? null,
-            $data['hrDeviceIndex'] ?? null
+            $data['warn_percent'],
+            $data['entPhysicalIndex'],
+            $data['hrDeviceIndex']
         );
     }
 

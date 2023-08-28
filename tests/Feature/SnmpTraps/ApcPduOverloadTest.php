@@ -22,8 +22,6 @@
 
 namespace LibreNMS\Tests\Feature\SnmpTraps;
 
-use LibreNMS\Enum\Severity;
-
 class ApcPduOverloadTest extends SnmpTrapTestCase
 {
     /**
@@ -46,7 +44,7 @@ SNMPv2-MIB::snmpTrapEnterprise.0 PowerNet-MIB::apc
 TRAP,
             'Grand POP PDU R15 A1 phase 1 Metered Rack PDU: Near overload.',
             'Could not handle rPDUNearOverload trap',
-            [Severity::Warning],
+            [4],
         );
     }
 
@@ -70,7 +68,7 @@ SNMPv2-MIB::snmpTrapEnterprise.0 PowerNet-MIB::apc
 TRAP,
             'Grand POP PDU R15 A1 phase 1 Metered Rack PDU: Near overload cleared.',
             'Could not handle rPDUNearOverloadClear trap',
-            [Severity::Ok],
+            [1],
         );
     }
 
@@ -94,7 +92,7 @@ SNMPv2-MIB::snmpTrapEnterprise.0 PowerNet-MIB::apc
 TRAP,
             'Grand POP PDU R15 A1 phase 1 APC Rack PDU: Overload condition.',
             'Could not handle rPDUOverload trap',
-            [Severity::Error],
+            [5],
         );
     }
 
@@ -118,7 +116,7 @@ SNMPv2-MIB::snmpTrapEnterprise.0 PowerNet-MIB::apc
 TRAP,
             'Grand POP PDU R15 A1 phase 1 APC Rack PDU: Overload condition has cleared.',
             'Could not handle rPDUOverloadClear trap',
-            [Severity::Ok],
+            [1],
         );
     }
 }

@@ -102,7 +102,6 @@ if ($exec) {
     exit($exit_code);
 } else {
     echo "Composer not available, please manually install composer.\n";
-    exit(1);
 }
 
 function curl_fetch($url, $proxy, $use_https, $output = false)

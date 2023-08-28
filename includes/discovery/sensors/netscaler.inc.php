@@ -15,17 +15,26 @@ foreach ($ns_sensor_array as $descr => $data) {
 
     $oid = '.1.3.6.1.4.1.5951.4.1.1.41.7.1.2.' . string_to_oid($descr);
 
-    $divisor = 1;
-    if (str_contains($descr, 'Temp')) {
+    if (strpos($descr, 'Temp') !== false) {
+        $divisor = 0;
+        $multiplier = 0;
         $type = 'temperature';
-    } elseif (str_contains($descr, 'Fan')) {
+    } elseif (strpos($descr, 'Fan') !== false) {
+        $divisor = 0;
+        $multiplier = 0;
         $type = 'fanspeed';
-    } elseif (str_contains($descr, 'Volt')) {
+    } elseif (strpos($descr, 'Volt') !== false) {
         $divisor = 1000;
+        $multiplier = 0;
         $type = 'voltage';
-    } elseif (str_contains($descr, 'Vtt')) {
+    } elseif (strpos($descr, 'Vtt') !== false) {
         $divisor = 1000;
+        $multiplier = 0;
         $type = 'voltage';
+    }
+
+    if ($divisor) {
+        $current = ($current / $divisor);
     }
 
     if (is_numeric($current) && $type) {
@@ -38,7 +47,12 @@ foreach ($ns_sensor_array as $descr => $data) {
             'netscaler-health',
             $descr,
             $divisor,
-            current: $current / $divisor
+            $multiplier,
+            null,
+            null,
+            null,
+            null,
+            $current
         );
     }
 }

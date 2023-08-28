@@ -6,7 +6,7 @@ use App\Models\Device;
 use LibreNMS\Interfaces\SnmptrapHandler;
 use LibreNMS\Snmptrap\Trap;
 
-class VeeamSobrOffloadFinished extends VeeamTrap implements SnmptrapHandler
+class VeeamSobrOffloadFinished implements SnmptrapHandler
 {
     /**
      * Handle snmptrap.
@@ -20,8 +20,8 @@ class VeeamSobrOffloadFinished extends VeeamTrap implements SnmptrapHandler
     {
         $name = $trap->getOidData('VEEAM-MIB::repositoryName');
         $result = $trap->getOidData('VEEAM-MIB::repositoryStatus');
-        $severity = $this->getResultSeverity($result);
+        $color = ['Success' => 1, 'Warning' => 4, 'Failed' => 5];
 
-        $trap->log('SNMP Trap: Scale-out offload job ' . $result . ' - ' . $name, $severity, 'backup');
+        $trap->log('SNMP Trap: Scale-out offload job ' . $result . ' - ' . $name, $color[$result], 'backup');
     }
 }

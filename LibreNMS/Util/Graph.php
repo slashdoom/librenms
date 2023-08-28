@@ -101,10 +101,7 @@ class Graph
      */
     public static function get($vars): GraphImage
     {
-        if (! defined('IGNORE_ERRORS')) {
-            define('IGNORE_ERRORS', true);
-        }
-
+        define('IGNORE_ERRORS', true);
         chdir(base_path());
 
         include_once base_path('includes/dbFacile.php');

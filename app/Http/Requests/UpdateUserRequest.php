@@ -2,12 +2,10 @@
 
 namespace App\Http\Requests;
 
-use App\Models\User;
 use Hash;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 use LibreNMS\Config;
-use Silber\Bouncer\BouncerFacade as Bouncer;
 
 class UpdateUserRequest extends FormRequest
 {
@@ -18,17 +16,14 @@ class UpdateUserRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        /** @var User|null $user */
+        if ($this->user()->isAdmin()) {
+            return true;
+        }
+
         $user = $this->route('user');
         if ($user && $this->user()->can('update', $user)) {
-            // normal users cannot update their roles or ability to modify a password
-            if ($this->user()->cannot('manage', Bouncer::role())) {
-                unset($this['roles']);
-            }
-
-            if ($user->is($this->user())) {
-                unset($this['can_modify_passwd']);
-            }
+            // normal users cannot edit their level or ability to modify a password
+            unset($this['level'], $this['can_modify_passwd']);
 
             return true;
         }
@@ -43,7 +38,7 @@ class UpdateUserRequest extends FormRequest
      */
     public function rules(): array
     {
-        if ($this->user()->can('update', User::class)) {
+        if ($this->user()->isAdmin()) {
             return [
                 'realname' => 'nullable|max:64|alpha_space',
                 'email' => 'nullable|email|max:64',
@@ -51,8 +46,7 @@ class UpdateUserRequest extends FormRequest
                 'new_password' => 'nullable|confirmed|min:' . Config::get('password.min_length', 8),
                 'new_password_confirmation' => 'nullable|same:new_password',
                 'dashboard' => 'int',
-                'roles' => 'array',
-                'roles.*' => Rule::in(Bouncer::role()->pluck('name')),
+                'level' => 'int',
                 'enabled' => 'nullable',
                 'can_modify_passwd' => 'nullable',
             ];
@@ -79,8 +73,7 @@ class UpdateUserRequest extends FormRequest
     {
         $validator->after(function ($validator) {
             // if not an admin and new_password is set, check old password matches
-            $user = $this->route('user');
-            if ($user && $this->user()->can('update', $user) && $this->user()->is($user)) {
+            if (! $this->user()->isAdmin()) {
                 if ($this->has('new_password')) {
                     if ($this->has('old_password')) {
                         $user = $this->route('user');

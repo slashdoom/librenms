@@ -208,9 +208,6 @@ class LegacyUserProvider implements UserProvider
         $user->auth_id = (string) $auth_id;
         $user->save();
 
-        // create and update roles
-        $user->setRoles($auth->getRoles($user->username), true);
-
         return $user;
     }
 }

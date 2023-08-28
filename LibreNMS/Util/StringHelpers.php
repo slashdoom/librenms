@@ -57,7 +57,6 @@ class StringHelpers
             'freeradius' => 'FreeRADIUS',
             'gpsd' => 'GPSD',
             'hv-monitor' => 'HV Monitor',
-            'mojo_cape_submit' => 'Mojo CAPE Submit',
             'mailcow-postfix' => 'mailcow-dockerized postfix',
             'mysql' => 'MySQL',
             'nfs-server' => 'NFS Server',

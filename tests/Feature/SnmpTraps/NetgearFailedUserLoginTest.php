@@ -22,8 +22,6 @@
 
 namespace LibreNMS\Tests\Feature\SnmpTraps;
 
-use LibreNMS\Enum\Severity;
-
 class NetgearFailedUserLoginTest extends SnmpTrapTestCase
 {
     public function testManagedSeries(): void
@@ -36,7 +34,7 @@ SNMPv2-MIB::snmpTrapOID.0 NETGEAR-SWITCHING-MIB::failedUserLoginTrap
 TRAP,
             'SNMP Trap: Failed User Login: {{ hostname }}',
             'Could not handle NETGEAR-SWITCHING-MIB::failedUserLoginTrap trap',
-            [Severity::Warning, 'auth'],
+            [4, 'auth'],
         );
     }
 
@@ -50,7 +48,7 @@ SNMPv2-MIB::snmpTrapOID.0 NETGEAR-SMART-SWITCHING-MIB::failedUserLoginTrap
 TRAP,
             'SNMP Trap: Failed User Login: {{ hostname }}',
             'Could not handle NETGEAR-SMART-SWITCHING-MIB::failedUserLoginTrap trap',
-            [Severity::Warning, 'auth'],
+            [4, 'auth'],
         );
     }
 }

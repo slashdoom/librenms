@@ -25,7 +25,6 @@
 
 namespace LibreNMS\Tests;
 
-use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Str;
 use LibreNMS\Authentication\LegacyAuth;
@@ -119,7 +118,8 @@ class AuthSSOTest extends DBTestCase
         $this->assertTrue($a->authenticate(['username' => $user]));
 
         // Retrieve it and validate
-        $this->assertFalse(User::thisAuth()->where('username', $user)->exists());
+        $dbuser = $a->getUser($a->getUserid($user));
+        $this->assertFalse($dbuser);
     }
 
     // Excercise general auth flow with creation enabled
@@ -138,10 +138,10 @@ class AuthSSOTest extends DBTestCase
         $this->assertTrue($a->authenticate(['username' => $user]));
 
         // Retrieve it and validate
-        $dbuser = User::thisAuth()->where('username', $user)->firstOrNew();
-        $this->assertSame($dbuser->realname, $a->authSSOGetAttr(Config::get('sso.realname_attr')));
-        $this->assertEmpty($dbuser->getRoles());
-        $this->assertSame($dbuser->email, $a->authSSOGetAttr(Config::get('sso.email_attr')));
+        $dbuser = $a->getUser($a->getUserid($user));
+        $this->assertSame($dbuser['realname'], $a->authSSOGetAttr(Config::get('sso.realname_attr')));
+        $this->assertTrue($dbuser['level'] == -1);
+        $this->assertSame($dbuser['email'], $a->authSSOGetAttr(Config::get('sso.email_attr')));
 
         // Change a few things and reauth
         $_SERVER['mail'] = 'test@example.net';
@@ -150,10 +150,10 @@ class AuthSSOTest extends DBTestCase
         $this->assertTrue($a->authenticate(['username' => $user]));
 
         // Retrieve it and validate the update was not persisted
-        $dbuser = User::thisAuth()->where('username', $user)->firstOrNew();
-        $this->assertFalse($a->authSSOGetAttr(Config::get('sso.realname_attr')) === $dbuser->realname);
-        $this->assertFalse($dbuser->roles()->where('name', 'admin')->exists());
-        $this->assertFalse($a->authSSOGetAttr(Config::get('sso.email_attr')) === $dbuser->email);
+        $dbuser = $a->getUser($a->getUserid($user));
+        $this->assertFalse($a->authSSOGetAttr(Config::get('sso.realname_attr')) === $dbuser['realname']);
+        $this->assertFalse($dbuser['level'] === '10');
+        $this->assertFalse($a->authSSOGetAttr(Config::get('sso.email_attr')) === $dbuser['email']);
     }
 
     // Excercise general auth flow with updates enabled
@@ -166,19 +166,19 @@ class AuthSSOTest extends DBTestCase
         // Create a random username and store it with the defaults
         $this->basicEnvironmentEnv();
         $user = $this->makeUser();
-        $this->assertTrue(auth()->attempt(['username' => $user]));
+        $this->assertTrue($a->authenticate(['username' => $user]));
 
         // Change a few things and reauth
         $_SERVER['mail'] = 'test@example.net';
         $_SERVER['displayName'] = 'Testier User';
         Config::set('sso.static_level', 10);
-        $this->assertTrue(auth()->attempt(['username' => $user]));
+        $this->assertTrue($a->authenticate(['username' => $user]));
 
         // Retrieve it and validate the update persisted
-        $dbuser = User::thisAuth()->where('username', $user)->firstOrNew();
-        $this->assertSame($dbuser->realname, $a->authSSOGetAttr(Config::get('sso.realname_attr')));
-        $this->assertTrue($dbuser->roles()->where('name', 'admin')->exists());
-        $this->assertSame($dbuser->email, $a->authSSOGetAttr(Config::get('sso.email_attr')));
+        $dbuser = $a->getUser($a->getUserid($user));
+        $this->assertSame($dbuser['realname'], $a->authSSOGetAttr(Config::get('sso.realname_attr')));
+        $this->assertTrue($dbuser['level'] == 10);
+        $this->assertSame($dbuser['email'], $a->authSSOGetAttr(Config::get('sso.email_attr')));
     }
 
     // Check some invalid authentication modes
@@ -212,13 +212,13 @@ class AuthSSOTest extends DBTestCase
         unset($_SERVER['displayName']);
         unset($_SERVER['mail']);
 
-        $this->assertTrue(auth()->attempt(['username' => $this->makeUser()]));
+        $this->assertTrue($a->authenticate(['username' => $this->makeUser()]));
 
         $this->basicEnvironmentHeader();
         unset($_SERVER['HTTP_DISPLAYNAME']);
         unset($_SERVER['HTTP_MAIL']);
 
-        $this->assertTrue(auth()->attempt(['username' => $this->makeUser()]));
+        $this->assertTrue($a->authenticate(['username' => $this->makeUser()]));
     }
 
     // Document the modules current behaviour, so that changes trigger test failures
@@ -347,7 +347,7 @@ class AuthSSOTest extends DBTestCase
 
     public function testLevelCaulculationFromAttr(): void
     {
-        /** @var \LibreNMS\Authentication\SSOAuthorizer $a */
+        /** @var \LibreNMS\Authentication\SSOAuthorizer */
         $a = LegacyAuth::reset();
 
         Config::set('sso.mode', 'env');
@@ -355,42 +355,37 @@ class AuthSSOTest extends DBTestCase
 
         //Integer
         Config::set('sso.level_attr', 'level');
-        $_SERVER['level'] = 5;
-        $this->assertSame(['global-read'], $a->getRoles(''));
+        $_SERVER['level'] = 9;
+        $this->assertSame(9, $a->authSSOCalculateLevel());
 
         //String
         Config::set('sso.level_attr', 'level');
-        $_SERVER['level'] = '5';
-        $this->assertSame(['global-read'], $a->getRoles(''));
-
-        // invalid level
-        Config::set('sso.level_attr', 'level');
-        $_SERVER['level'] = 9;
-        $this->assertSame([], $a->getRoles(''));
+        $_SERVER['level'] = '9';
+        $this->assertSame(9, $a->authSSOCalculateLevel());
 
         //Invalid String
         Config::set('sso.level_attr', 'level');
         $_SERVER['level'] = 'foobar';
         $this->expectException('LibreNMS\Exceptions\AuthenticationException');
-        $a->getRoles('');
+        $a->authSSOCalculateLevel();
 
         //null
         Config::set('sso.level_attr', 'level');
         $_SERVER['level'] = null;
         $this->expectException('LibreNMS\Exceptions\AuthenticationException');
-        $a->getRoles('');
+        $a->authSSOCalculateLevel();
 
         //Unset pointer
         Config::forget('sso.level_attr');
         $_SERVER['level'] = '9';
         $this->expectException('LibreNMS\Exceptions\AuthenticationException');
-        $a->getRoles('');
+        $a->authSSOCalculateLevel();
 
         //Unset attr
         Config::set('sso.level_attr', 'level');
         unset($_SERVER['level']);
         $this->expectException('LibreNMS\Exceptions\AuthenticationException');
-        $a->getRoles('');
+        $a->authSSOCalculateLevel();
     }
 
     public function testGroupParsing(): void

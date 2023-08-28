@@ -26,7 +26,6 @@
 namespace LibreNMS\Snmptrap\Handlers;
 
 use App\Models\Device;
-use LibreNMS\Enum\Severity;
 use LibreNMS\Interfaces\SnmptrapHandler;
 use LibreNMS\Snmptrap\Trap;
 
@@ -47,9 +46,9 @@ class JnxVpnIfUp implements SnmptrapHandler
 
         if (substr($vpnName, 0, 6) === 'vt/lsi') {
             $vpnDevice = substr($vpnName, 7, 15);
-            $trap->log("$vpnType to device $vpnDevice is now connected", Severity::Ok);
+            $trap->log("$vpnType to device $vpnDevice is now connected", 1);
         } else {
-            $trap->log("$vpnType on interface $vpnName is now connected", Severity::Ok);
+            $trap->log("$vpnType on interface $vpnName is now connected", 1);
         }
     }
 }

@@ -28,7 +28,6 @@ namespace LibreNMS\Tests\Feature\SnmpTraps;
 use App\Models\Device;
 use App\Models\Ipv4Address;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
-use LibreNMS\Enum\Severity;
 use LibreNMS\Tests\Traits\RequiresDatabase;
 
 class FgTrapIpsTest extends SnmpTrapTestCase
@@ -51,7 +50,7 @@ FORTINET-FORTIGATE-MIB::fgIpsTrapSrcIp.0 $ipv4->ipv4_address
 FORTINET-FORTIGATE-MIB::fgIpsTrapSigMsg.0 tcp_src_session",
             "DDoS prevention triggered. Source: $ipv4->ipv4_address Protocol: tcp_src_session",
             'Could not handle fgTrapIpsAnomaly trap',
-            [Severity::Warning],
+            [4],
             $device,
         );
     }
@@ -86,7 +85,7 @@ FORTINET-FORTIGATE-MIB::fgIpsTrapSrcIp.0 $ipv4->ipv4_address
 FORTINET-FORTIGATE-MIB::fgIpsTrapSigMsg.0 UPnP.SSDP.M.Search.Anomaly",
             "IPS signature UPnP.SSDP.M.Search.Anomaly detected from $ipv4->ipv4_address with Fortiguard ID 47173",
             'Could not handle fgTrapIpsSignature trap',
-            [Severity::Warning],
+            [4],
             $device,
         );
     }

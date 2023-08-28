@@ -30,7 +30,6 @@
 namespace LibreNMS\Snmptrap\Handlers;
 
 use App\Models\Device;
-use LibreNMS\Enum\Severity;
 use LibreNMS\Interfaces\SnmptrapHandler;
 use LibreNMS\Snmptrap\Trap;
 
@@ -47,6 +46,6 @@ class VmwVmHBLost implements SnmptrapHandler
     public function handle(Device $device, Trap $trap)
     {
         $vmGuestName = VmwTrapUtil::getGuestName($trap);
-        $trap->log("Heartbeat from guest $vmGuestName lost", Severity::Warning);
+        $trap->log("Heartbeat from guest $vmGuestName lost", 4);
     }
 }

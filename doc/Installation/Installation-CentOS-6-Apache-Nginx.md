@@ -367,7 +367,7 @@ indicate otherwise!
 Initiate the follow database with the following command:
 
 ```
-./lnms migrate
+php includes/sql-schema/update.php
 ```
 
 # Create admin user

@@ -17,10 +17,6 @@ require 'includes/html/graphs/common.inc.php';
 
 $stacked = generate_stacked_graphs();
 
-if (! isset($munge)) {
-    $munge = false;
-}
-
 if (! isset($colours)) {
     $colours = 'rainbow_stats_purple';
 }
@@ -112,30 +108,15 @@ if ($height > 25) {
     $descr_1w = \LibreNMS\Data\Store\Rrd::fixedSafeDescr('1 week avg', $descr_len);
 }
 
-$id = 'ds0';
-if ($munge) {
-    $id = 'dsm0';
-}
+$id = 'ds' . $i;
 
-$rrd_options .= ' DEF:ds0' . "=$filename:$ds:AVERAGE";
-
-$munge_helper = '';
-if ($munge) {
-    if (! isset($munge_opts)) {
-        $munge_opts = '86400,/';
-    }
-    $rrd_options .= ' CDEF:dsm0=ds0,' . $munge_opts;
-    $munge_helper = 'ds';
-}
+$rrd_options .= ' DEF:' . $id . "=$filename:$ds:AVERAGE";
 
 $rrd_optionsb .= ' AREA:' . $id . '#' . $colourA . $colourAalpha;
 $rrd_optionsb .= ' LINE1.25:' . $id . '#' . $colour . ":'$descr'";
 
 if ($height > 25) {
-    $rrd_options .= ' DEF:' . $id . "1h$munge_helper=$filename:$ds:AVERAGE:step=3600";
-    if ($munge) {
-        $rrd_options .= ' CDEF:dsm01h=dsm01hds,' . $munge_opts;
-    }
+    $rrd_options .= ' DEF:' . $id . "1h=$filename:$ds:AVERAGE:step=3600";
     $rrd_options .= ' VDEF:' . $id . '50th=' . $id . ',50,PERCENTNAN';
     $rrd_options .= ' VDEF:' . $id . '25th=' . $id . ',25,PERCENTNAN';
     $rrd_options .= ' VDEF:' . $id . '75th=' . $id . ',75,PERCENTNAN';
@@ -149,18 +130,12 @@ if ($height > 25) {
     }
     // displays nan if less than 17 hours
     if ($time_diff >= 61200) {
-        $rrd_options .= ' DEF:' . $id . "1d$munge_helper=$filename:$ds:AVERAGE:step=86400";
-        if ($munge) {
-            $rrd_options .= ' CDEF:dsm01d=dsm01dds,' . $munge_opts;
-        }
+        $rrd_options .= ' DEF:' . $id . "1d=$filename:$ds:AVERAGE:step=86400";
     }
 
     // weekly breaks and causes issues if it is less than 8 days
     if ($time_diff >= 691200) {
-        $rrd_options .= ' DEF:' . $id . "1w$munge_helper=$filename:$ds:AVERAGE:step=604800";
-        if ($munge) {
-            $rrd_options .= ' CDEF:dsm01w=dsm01wds,' . $munge_opts;
-        }
+        $rrd_options .= ' DEF:' . $id . "1w=$filename:$ds:AVERAGE:step=604800";
     }
 
     $rrd_optionsb .= ' GPRINT:' . $id . ':LAST:%5.' . $float_precision . 'lf%s' . $units . ' GPRINT:' . $id . ':MIN:%5.' . $float_precision . 'lf%s' . $units;

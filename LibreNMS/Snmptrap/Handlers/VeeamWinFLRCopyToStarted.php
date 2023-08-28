@@ -3,11 +3,10 @@
 namespace LibreNMS\Snmptrap\Handlers;
 
 use App\Models\Device;
-use LibreNMS\Enum\Severity;
 use LibreNMS\Interfaces\SnmptrapHandler;
 use LibreNMS\Snmptrap\Trap;
 
-class VeeamWinFLRCopyToStarted extends VeeamTrap implements SnmptrapHandler
+class VeeamWinFLRCopyToStarted implements SnmptrapHandler
 {
     /**
      * Handle snmptrap.
@@ -23,6 +22,6 @@ class VeeamWinFLRCopyToStarted extends VeeamTrap implements SnmptrapHandler
         $vm_name = $trap->getOidData('VEEAM-MIB::vmName');
         $target_dir = $trap->getOidData('VEEAM-MIB::targetDir');
 
-        $trap->log('SNMP Trap: FLR job started - ' . $vm_name . ' - ' . $initiator_name . ' - ' . $target_dir, Severity::Info, 'backup');
+        $trap->log('SNMP Trap: FLR job started - ' . $vm_name . ' - ' . $initiator_name . ' - ' . $target_dir, 2, 'backup');
     }
 }

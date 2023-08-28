@@ -51,7 +51,7 @@ $pagetitle[] = 'Health :: Processor';
         {
             return {
                 id: "processor",
-                view: '<?php echo htmlspecialchars($vars['view']); ?>'
+                view: '<?php echo $vars['view']; ?>'
             };
         },
         url: "ajax_table.php"

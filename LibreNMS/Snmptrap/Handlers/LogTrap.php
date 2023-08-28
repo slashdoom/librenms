@@ -26,7 +26,6 @@
 namespace LibreNMS\Snmptrap\Handlers;
 
 use App\Models\Device;
-use LibreNMS\Enum\Severity;
 use LibreNMS\Interfaces\SnmptrapHandler;
 use LibreNMS\Snmptrap\Trap;
 
@@ -55,14 +54,14 @@ class LogTrap implements SnmptrapHandler
         $trap->log('SNMP Trap: Log ' . $logName . ' ' . $logEvent . ' ' . $logPC . ' ' . $logAI . ' ' . $state, $severity, 'log');
     }
 
-    private function getSeverity(string $state): Severity
+    private function getSeverity(string $state): int
     {
         return match ($state) {
-            'warning', '3', 'major', '5' => Severity::Warning,
-            'critical', '4' => Severity::Error,
-            'minor', '2' => Severity::Notice,
-            'nonAlarmed', '1' => Severity::Ok,
-            default => Severity::Unknown,
+            'warning', '3', 'major', '5' => 4,
+            'critical', '4' => 5,
+            'minor', '2' => 3,
+            'nonAlarmed', '1' => 1,
+            default => 0,
         };
     }
 }

@@ -26,7 +26,6 @@ namespace LibreNMS\Authentication;
 
 use App\Models\User;
 use LibreNMS\Config;
-use LibreNMS\Enum\LegacyAuthLevel;
 use LibreNMS\Exceptions\AuthenticationException;
 use LibreNMS\Exceptions\LdapMissingException;
 
@@ -114,38 +113,32 @@ class LdapAuthorizationAuthorizer extends AuthorizerBase
         return false;
     }
 
-    public function getRoles(string $username): array
+    public function getUserlevel($username)
     {
-        $roles = $this->authLdapSessionCacheGet('roles');
-        if ($roles !== null) {
-            return $roles;
+        $userlevel = $this->authLdapSessionCacheGet('userlevel');
+        if ($userlevel) {
+            return $userlevel;
+        } else {
+            $userlevel = 0;
         }
-        $roles = [];
 
         // Find all defined groups $username is in
         $filter = '(&(|(cn=' . implode(')(cn=', array_keys(Config::get('auth_ldap_groups'))) . '))(' . Config::get('auth_ldap_groupmemberattr') . '=' . $this->getMembername($username) . '))';
         $search = ldap_search($this->ldap_connection, Config::get('auth_ldap_groupbase'), $filter);
         $entries = ldap_get_entries($this->ldap_connection, $search);
 
-        $authLdapGroups = Config::get('auth_ldap_groups');
-        // Collect all roles
+        // Loop the list and find the highest level
         foreach ($entries as $entry) {
             $groupname = $entry['cn'][0];
-
-            if (isset($authLdapGroups[$groupname]['roles']) && is_array($authLdapGroups[$groupname]['roles'])) {
-                $roles = array_merge($roles, $authLdapGroups[$groupname]['roles']);
-            } elseif (isset($authLdapGroups[$groupname]['level'])) {
-                $role = LegacyAuthLevel::tryFrom($authLdapGroups[$groupname]['level'])?->getName();
-                if ($role) {
-                    $roles[] = $role;
-                }
+            $authLdapGroups = Config::get('auth_ldap_groups');
+            if ($authLdapGroups[$groupname]['level'] > $userlevel) {
+                $userlevel = $authLdapGroups[$groupname]['level'];
             }
         }
 
-        $roles = array_unique($roles);
-        $this->authLdapSessionCacheSet('roles', $roles);
+        $this->authLdapSessionCacheSet('userlevel', $userlevel);
 
-        return $roles;
+        return $userlevel;
     }
 
     public function getUserid($username)
@@ -163,7 +156,7 @@ class LdapAuthorizationAuthorizer extends AuthorizerBase
         $entries = ldap_get_entries($this->ldap_connection, $search);
 
         if ($entries['count']) {
-            $user_id = $entries[0]['uidnumber'][0];
+            $user_id = (int) $entries[0]['uidnumber'][0];
         }
 
         if ($user_id === -1) {
@@ -180,35 +173,53 @@ class LdapAuthorizationAuthorizer extends AuthorizerBase
         return $user_id;
     }
 
-    public function getUser($user_id)
+    public function getUserlist()
     {
-        $uid_attr = strtolower(Config::get('auth_ldap_uid_attribute', 'uidnumber'));
-        $filter = "($uid_attr=$user_id)";
+        $userlist = [];
+
+        $filter = '(' . Config::get('auth_ldap_prefix') . '*)';
+        if (Config::get('auth_ldap_userlist_filter') != null) {
+            $filter = '(' . Config::get('auth_ldap_userlist_filter') . ')';
+        }
         $search = ldap_search($this->ldap_connection, trim(Config::get('auth_ldap_suffix'), ','), $filter);
         $entries = ldap_get_entries($this->ldap_connection, $search);
 
         if ($entries['count']) {
-            $entry = $entries[0];
-            $username = $entry['uid'][0];
-            $realname = $entry['cn'][0];
-            $user_id = $entry['uidnumber'][0];
-            $email = $entry[Config::get('auth_ldap_emailattr')][0];
-            $ldap_groups = $this->getGroupList();
-            foreach ($ldap_groups as $ldap_group) {
-                $ldap_comparison = ldap_compare(
-                    $this->ldap_connection,
-                    $ldap_group,
-                    Config::get('auth_ldap_groupmemberattr'),
-                    $this->getMembername($username)
-                );
-                if (! Config::has('auth_ldap_group') || $ldap_comparison === true) {
-                    return [
-                        'username' => $username,
-                        'realname' => $realname,
-                        'user_id'  => $user_id,
-                        'email'    => $email,
-                    ];
+            foreach ($entries as $entry) {
+                $username = $entry['uid'][0];
+                $realname = $entry['cn'][0];
+                $user_id = $entry['uidnumber'][0];
+                $email = $entry[Config::get('auth_ldap_emailattr')][0];
+                $ldap_groups = $this->getGroupList();
+                foreach ($ldap_groups as $ldap_group) {
+                    $ldap_comparison = ldap_compare(
+                        $this->ldap_connection,
+                        $ldap_group,
+                        Config::get('auth_ldap_groupmemberattr'),
+                        $this->getMembername($username)
+                    );
+                    if (! Config::has('auth_ldap_group') || $ldap_comparison === true) {
+                        $userlist[] = [
+                            'username' => $username,
+                            'realname' => $realname,
+                            'user_id'  => $user_id,
+                            'email'    => $email,
+                        ];
+                    }
                 }
+            }
+        }
+
+        return $userlist;
+    }
+
+    public function getUser($user_id)
+    {
+        foreach ($this->getUserlist() as $user) {
+            if ((int) $user['user_id'] === (int) $user_id) {
+                $user['level'] = $this->getUserlevel($user['username']);
+
+                return $user;
             }
         }
 

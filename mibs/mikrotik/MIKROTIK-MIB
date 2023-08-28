@@ -8,11 +8,11 @@ TEXTUAL-CONVENTION, DisplayString, MacAddress, DateAndTime FROM SNMPv2-TC
 OBJECT-GROUP, NOTIFICATION-GROUP FROM SNMPv2-CONF;
 
 mikrotikExperimentalModule MODULE-IDENTITY
-  LAST-UPDATED "202305010000Z"
+  LAST-UPDATED "202010080000Z"
   ORGANIZATION "MikroTik"
   CONTACT-INFO "support@mikrotik.com"
   DESCRIPTION ""
-  REVISION "202305010000Z"
+  REVISION "202010080000Z"
   DESCRIPTION ""
   ::= { mikrotik 1 }
 
@@ -1812,19 +1812,12 @@ mtxrFirmwareUpgradeVersion OBJECT-TYPE
     DESCRIPTION "Upgrade firmware version"
     ::= { mtxrSystem 7 }
 
-mtxrDisplayName OBJECT-TYPE
-    SYNTAX DisplayString
-    MAX-ACCESS read-only
-    STATUS current
-    DESCRIPTION "display name"
-    ::= { mtxrSystem 8 }
-
 mtxrBoardName OBJECT-TYPE
     SYNTAX DisplayString
     MAX-ACCESS read-only
     STATUS current
     DESCRIPTION "board name"
-    ::= { mtxrSystem 9 }
+    ::= { mtxrSystem 8 }
 
 mtxrSystemGroup OBJECT-GROUP OBJECTS {
         mtxrSystemReboot,
@@ -2286,8 +2279,7 @@ MtxrInterfaceStatsEntry ::= SEQUENCE {
     mtxrInterfaceStatsTxFCSError Counter64,
     mtxrInterfaceStatsTxControl Counter64,
     mtxrInterfaceStatsTxFragment Counter64,
-    mtxrInterfaceStatsLinkDowns Counter32,
-    mtxrInterfaceStatsTxRx1024ToMax Counter64
+    mtxrInterfaceStatsLinkDowns Counter32
 }
 
 mtxrInterfaceStatsIndex OBJECT-TYPE
@@ -2766,13 +2758,6 @@ mtxrInterfaceStatsLinkDowns OBJECT-TYPE
     DESCRIPTION ""
     ::= { mtxrInterfaceStatsEntry 90 }
 
-mtxrInterfaceStatsTxRx1024ToMax OBJECT-TYPE
-    SYNTAX Counter64
-    MAX-ACCESS read-only
-    STATUS current
-    DESCRIPTION ""
-    ::= { mtxrInterfaceStatsEntry 91 }
-
 mtxrInterfaceStatsGroup OBJECT-GROUP OBJECTS {
         mtxrInterfaceStatsName,
         mtxrInterfaceStatsDriverRxBytes,
@@ -2843,8 +2828,7 @@ mtxrInterfaceStatsGroup OBJECT-GROUP OBJECTS {
         mtxrInterfaceStatsTxFCSError,
         mtxrInterfaceStatsTxControl,
         mtxrInterfaceStatsTxFragment,
-        mtxrInterfaceStatsLinkDowns,
-        mtxrInterfaceStatsTxRx1024ToMax
+        mtxrInterfaceStatsLinkDowns
     }
     STATUS current
     DESCRIPTION ""
@@ -3013,9 +2997,7 @@ mtxrLTEModemAccessTechnology OBJECT-TYPE
         hsdpa(4),
         hsupa(5),
         hsdpahsupa(6),
-        eutran(7),
-        nr-sa(11),
-        nr-nsa(13)
+        eutran(7)
     }
     MAX-ACCESS read-only
     STATUS current
@@ -3203,8 +3185,7 @@ MtxrOpticalTableEntry ::= SEQUENCE {
         mtxrOpticalSupplyVoltage GDiv1000,
         mtxrOpticalTxBiasCurrent Gauge32,
         mtxrOpticalTxPower IDiv1000,
-        mtxrOpticalRxPower IDiv1000,
-        mtxrOpticalVendorName DisplayString
+        mtxrOpticalRxPower IDiv1000
 }
 
 mtxrOpticalGroup OBJECT-GROUP OBJECTS {
@@ -3216,8 +3197,7 @@ mtxrOpticalGroup OBJECT-GROUP OBJECTS {
         mtxrOpticalSupplyVoltage,
         mtxrOpticalTxBiasCurrent,
         mtxrOpticalTxPower,
-        mtxrOpticalRxPower,
-        mtxrOpticalVendorName
+        mtxrOpticalRxPower
     }
     STATUS current
     DESCRIPTION ""
@@ -3298,13 +3278,6 @@ mtxrOpticalRxPower OBJECT-TYPE
     STATUS current
     DESCRIPTION ""
     ::= { mtxrOpticalTableEntry 10 }
-
-mtxrOpticalVendorName OBJECT-TYPE
-    SYNTAX DisplayString
-    MAX-ACCESS read-only
-    STATUS current
-    DESCRIPTION ""
-    ::= { mtxrOpticalTableEntry 11 }
 
 -- IPSec *****************************************************************
 
@@ -3578,3 +3551,4 @@ mtxrTrapGroup NOTIFICATION-GROUP NOTIFICATIONS {
 -- ***************************************************************************
 
 END
+

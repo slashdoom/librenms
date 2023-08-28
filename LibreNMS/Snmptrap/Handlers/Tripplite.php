@@ -25,20 +25,19 @@
 
 namespace LibreNMS\Snmptrap\Handlers;
 
-use LibreNMS\Enum\Severity;
+use Illuminate\Support\Arr;
 use LibreNMS\Snmptrap\Trap;
 
 class Tripplite
 {
-    protected function getSeverity(Trap $trap): Severity
+    protected function getSeverity(Trap $trap): int
     {
-        return match ($trap->getOidData('TRIPPLITE-PRODUCTS::tlpAlarmType')) {
-            'critical' => Severity::Error,
-            'warning' => Severity::Warning,
-            'info' => Severity::Info,
-            'status' => Severity::Notice,
-            default => Severity::Warning,
-        };
+        return Arr::get([
+            'critical' => 5,
+            'warning' => 4,
+            'info' => 2,
+            'status' => 3,
+        ], $trap->getOidData('TRIPPLITE-PRODUCTS::tlpAlarmType'), 4);
     }
 
     protected function describe(Trap $trap): string

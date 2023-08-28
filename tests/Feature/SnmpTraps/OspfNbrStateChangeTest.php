@@ -32,7 +32,6 @@ namespace LibreNMS\Tests\Feature\SnmpTraps;
 use App\Models\Device;
 use App\Models\OspfNbr;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
-use LibreNMS\Enum\Severity;
 use LibreNMS\Tests\Traits\RequiresDatabase;
 
 class OspfNbrStateChangeTest extends SnmpTrapTestCase
@@ -60,7 +59,7 @@ OSPF-MIB::ospfNbrState.$ospfNbr->ospf_nbr_id down
 SNMPv2-MIB::snmpTrapEnterprise.0 JUNIPER-CHASSIS-DEFINES-MIB::jnxProductNameSRX240 ",
             "OSPF neighbor $ospfNbr->ospfNbrRtrId changed state to down",
             'Could not handle ospfNbrStateChange down',
-            [Severity::Error],
+            [5],
             $device,
         );
 
@@ -88,7 +87,7 @@ OSPF-MIB::ospfNbrState.$ospfNbr->ospf_nbr_id full
 SNMPv2-MIB::snmpTrapEnterprise.0 JUNIPER-CHASSIS-DEFINES-MIB::jnxProductNameSRX240 ",
             "OSPF neighbor $ospfNbr->ospfNbrRtrId changed state to full",
             'Could not handle ospfNbrStateChange full',
-            [Severity::Ok],
+            [1],
             $device,
         );
 
@@ -116,7 +115,7 @@ OSPF-MIB::ospfNbrState.$ospfNbr->ospf_nbr_id exstart
 SNMPv2-MIB::snmpTrapEnterprise.0 JUNIPER-CHASSIS-DEFINES-MIB::jnxProductNameSRX240 ",
             "OSPF neighbor $ospfNbr->ospfNbrRtrId changed state to exstart",
             'Could not handle ospfNbrStateChange exstart',
-            [Severity::Warning],
+            [4],
             $device,
         );
 

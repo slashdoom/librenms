@@ -25,8 +25,6 @@
 
 namespace LibreNMS\Tests\Feature\SnmpTraps;
 
-use LibreNMS\Enum\Severity;
-
 class FmTrapLogRateThresholdTest extends SnmpTrapTestCase
 {
     public function testAvOversize(): void
@@ -43,7 +41,7 @@ FORTINET-FORTIMANAGER-FORTIANALYZER-MIB::fmLogRateThreshold.0 260
 TRAP,
             'Recommended log rate exceeded. Current Rate: 315 Recommended Rate: 260',
             'Could not handle fmTrapLogRateThreshold trap',
-            [Severity::Notice],
+            [3],
         );
     }
 }

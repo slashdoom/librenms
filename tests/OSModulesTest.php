@@ -123,8 +123,8 @@ class OSModulesTest extends DBTestCase
             $actual = $results[$module]['discovery'] ?? [];
             $this->checkTestData($expected, $actual, 'Discovered', $os, $module, $filename, $helper, $phpunit_debug);
 
-            // modules without polling
-            if (in_array($module, ['route', 'vlans'])) {
+            if ($module === 'route') {
+                // no route poller module
                 continue;
             }
 

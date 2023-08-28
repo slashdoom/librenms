@@ -129,9 +129,7 @@ class DeviceGroup extends BaseModel
 
     public function services(): BelongsToMany
     {
-        // $parentKey='id', $relatedKey='device_id' is required to generate the right SQL query.
-        // Otherwise the primaryKey in Service.php will be used
-        return $this->belongsToMany(\App\Models\Service::class, 'device_group_device', 'device_group_id', 'device_id', 'id', 'device_id');
+        return $this->belongsToMany(\App\Models\Service::class, 'device_group_device', 'device_group_id', 'device_id');
     }
 
     public function users(): BelongsToMany

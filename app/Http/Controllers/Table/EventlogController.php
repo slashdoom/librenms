@@ -28,7 +28,7 @@ namespace App\Http\Controllers\Table;
 use App\Models\Eventlog;
 use Carbon\Carbon;
 use LibreNMS\Config;
-use LibreNMS\Enum\Severity;
+use LibreNMS\Enum\Alert;
 use LibreNMS\Util\Url;
 
 class EventlogController extends TableController
@@ -124,18 +124,26 @@ class EventlogController extends TableController
     }
 
     /**
-     * @param  Severity  $eventlog_severity
+     * @param  int  $eventlog_severity
      * @return string $eventlog_severity_icon
      */
     private function severityLabel($eventlog_severity)
     {
-        return match ($eventlog_severity) {
-            Severity::Ok => 'label-success',
-            Severity::Info => 'label-info',
-            Severity::Notice => 'label-primary',
-            Severity::Warning => 'label-warning',
-            Severity::Error => 'label-danger',
-            default => 'label-default', // Unknown
-        };
+        switch ($eventlog_severity) {
+            case Alert::OK:
+                return 'label-success'; //OK
+            case Alert::INFO:
+                return 'label-info'; //Informational
+            case Alert::NOTICE:
+                return 'label-primary'; //Notice
+            case Alert::WARNING:
+                return 'label-warning'; //Warning
+            case Alert::ERROR:
+                return 'label-danger'; //Critical
+            default:
+                return 'label-default'; //Unknown
+        }
     }
+
+    // end eventlog_severity
 }

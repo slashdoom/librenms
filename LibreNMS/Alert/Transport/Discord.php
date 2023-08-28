@@ -35,9 +35,12 @@ use LibreNMS\Util\Http;
 
 class Discord extends Transport
 {
-    public const DEFAULT_EMBEDS = 'hostname,name,timestamp,severity';
-    private array $embedFieldTranslations = [
+    public const ALERT_FIELDS_TO_DISCORD_FIELDS = [
+        'timestamp' => 'Timestamp',
+        'severity' => 'Severity',
+        'hostname' => 'Hostname',
         'name' => 'Rule Name',
+        'rule' => 'Rule',
     ];
 
     public function deliverAlert(array $alert_data): bool
@@ -102,12 +105,15 @@ class Discord extends Transport
     {
         $result = [];
 
-        $fields = explode(',', $this->config['discord-embed-fields'] ?? self::DEFAULT_EMBEDS);
+        foreach (self::ALERT_FIELDS_TO_DISCORD_FIELDS as $objKey => $discordKey) {
+            // Skip over keys that do not exist so Discord does not give us a 400.
+            if (! $alert_data[$objKey]) {
+                continue;
+            }
 
-        foreach ($fields as $field) {
             $result[] = [
-                'name' => $this->embedFieldTranslations[$field] ?? ucfirst($field),
-                'value' => $alert_data[$field] ?? 'Error: Invalid Field',
+                'name' => $discordKey,
+                'value' => $alert_data[$objKey],
             ];
         }
 
@@ -129,13 +135,6 @@ class Discord extends Transport
                     'name' => 'options',
                     'descr' => 'Enter the config options (format: option=value separated by new lines)',
                     'type' => 'textarea',
-                ],
-                [
-                    'title' => 'Fields to embed in the alert',
-                    'name' => 'discord-embed-fields',
-                    'descr' => 'Comma seperated list of fields from the alert to attach to the Discord message',
-                    'type' => 'text',
-                    'default' => self::DEFAULT_EMBEDS,
                 ],
             ],
             'validation' => [

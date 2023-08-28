@@ -27,8 +27,6 @@
 
 namespace LibreNMS\Tests\Feature\SnmpTraps;
 
-use LibreNMS\Enum\Severity;
-
 class RuckusSzClusterStateTest extends SnmpTrapTestCase
 {
     public function testClusterInMaintenance(): void
@@ -45,7 +43,7 @@ RUCKUS-SZ-EVENT-MIB::ruckusSZClusterName.0 "{{ hostname }}"
 TRAP,
             'Smartzone cluster {{ hostname }} state changed to maintenance',
             'Could not handle ruckusSZClusterInMaintenanceStateTrap',
-            [Severity::Notice],
+            [3],
         );
     }
 

@@ -26,7 +26,6 @@
 namespace LibreNMS\Snmptrap\Handlers;
 
 use App\Models\Device;
-use LibreNMS\Enum\Severity;
 use LibreNMS\Interfaces\SnmptrapHandler;
 use LibreNMS\Snmptrap\Trap;
 use Log;
@@ -54,6 +53,6 @@ class JnxLdpSesDown implements SnmptrapHandler
             return;
         }
 
-        $trap->log("LDP session on interface $port->ifDescr is $state due to $reason", Severity::Warning);
+        $trap->log("LDP session on interface $port->ifDescr is $state due to $reason", 4);
     }
 }

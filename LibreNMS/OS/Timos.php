@@ -912,7 +912,10 @@ class Timos extends OS implements MplsDiscovery, MplsPolling, WirelessPowerDisco
                 '.1.3.6.1.4.1.6527.3.1.2.109.3.1.1.1.8.' . $index,
                 'timos',
                 $index,
-                'RSSI: ' . $carrier[$index]['ifName']
+                'RSSI: ' . $carrier[$index]['ifName'],
+                null,
+                1,
+                10
             );
         }
 
@@ -932,7 +935,10 @@ class Timos extends OS implements MplsDiscovery, MplsPolling, WirelessPowerDisco
                 '.1.3.6.1.4.1.6527.3.1.2.109.3.1.1.1.9.' . $index,
                 'timos',
                 $index,
-                'RSRP: ' . $carrier[$index]['ifName']
+                'RSRP: ' . $carrier[$index]['ifName'],
+                null,
+                1,
+                10
             );
         }
 

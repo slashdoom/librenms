@@ -28,7 +28,7 @@ namespace App\Models;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Support\Facades\Auth;
-use LibreNMS\Enum\Severity;
+use LibreNMS\Enum\Alert;
 
 class Eventlog extends DeviceRelatedModel
 {
@@ -36,9 +36,6 @@ class Eventlog extends DeviceRelatedModel
     protected $primaryKey = 'event_id';
     public $timestamps = false;
     protected $fillable = ['datetime', 'device_id', 'message', 'type', 'reference', 'username', 'severity'];
-    protected $casts = [
-        'severity' => Severity::class,
-    ];
 
     // ---- Helper Functions ----
     /**
@@ -49,10 +46,10 @@ class Eventlog extends DeviceRelatedModel
      * @param  string  $text  message describing the event
      * @param  Device|int|null  $device  related device
      * @param  string  $type  brief category for this event. Examples: sensor, state, stp, system, temperature, interface
-     * @param  Severity  $severity  1: ok, 2: info, 3: notice, 4: warning, 5: critical, 0: unknown
+     * @param  int  $severity  1: ok, 2: info, 3: notice, 4: warning, 5: critical, 0: unknown
      * @param  int|string|null  $reference  the id of the referenced entity.  Supported types: interface
      */
-    public static function log($text, $device = null, $type = null, Severity $severity = Severity::Info, $reference = null): void
+    public static function log($text, $device = null, $type = null, $severity = Alert::INFO, $reference = null): void
     {
         $model = app()->make(Eventlog::class);
         $model->_log($text, $device, $type, $severity, $reference);
@@ -64,10 +61,10 @@ class Eventlog extends DeviceRelatedModel
      * @param  string  $text
      * @param  Device|int|null  $device
      * @param  string  $type
-     * @param  Severity  $severity
+     * @param  int  $severity
      * @param  int|string|null  $reference
      */
-    public function _log($text, $device = null, $type = null, Severity $severity = Severity::Info, $reference = null): void
+    public function _log($text, $device = null, $type = null, $severity = Alert::INFO, $reference = null): void
     {
         $log = new static([
             'reference' => $reference,

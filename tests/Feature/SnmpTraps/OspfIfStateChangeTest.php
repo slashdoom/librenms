@@ -33,7 +33,6 @@ use App\Models\Device;
 use App\Models\OspfPort;
 use App\Models\Port;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
-use LibreNMS\Enum\Severity;
 use LibreNMS\Tests\Traits\RequiresDatabase;
 
 class OspfIfStateChangeTest extends SnmpTrapTestCase
@@ -62,7 +61,7 @@ OSPF-MIB::ospfIfState.$ospfIf->ospfIfIpAddress.0 down
 SNMPv2-MIB::snmpTrapEnterprise.0 JUNIPER-CHASSIS-DEFINES-MIB::jnxProductNameSRX240",
             "OSPF interface $port->ifName is down",
             'Could not handle ospfIfStateChange down',
-            [Severity::Error],
+            [5],
             $device,
         );
 
@@ -92,7 +91,7 @@ SNMPv2-MIB::snmpTrapEnterprise.0 JUNIPER-CHASSIS-DEFINES-MIB::jnxProductNameSRX2
 ",
             "OSPF interface $port->ifName is designatedRouter",
             'Could not handle ospfIfStateChange designatedRouter',
-            [Severity::Ok],
+            [1],
             $device,
         );
 
@@ -121,7 +120,7 @@ OSPF-MIB::ospfIfState.$ospfIf->ospfIfIpAddress.0 backupDesignatedRouter
 SNMPv2-MIB::snmpTrapEnterprise.0 JUNIPER-CHASSIS-DEFINES-MIB::jnxProductNameSRX240",
             "OSPF interface $port->ifName is backupDesignatedRouter",
             'Could not handle ospfIfStateChange backupDesignatedRouter',
-            [Severity::Ok],
+            [1],
             $device,
         );
 
@@ -150,7 +149,7 @@ OSPF-MIB::ospfIfState.$ospfIf->ospfIfIpAddress.0 otherDesignatedRouter
 SNMPv2-MIB::snmpTrapEnterprise.0 JUNIPER-CHASSIS-DEFINES-MIB::jnxProductNameSRX240",
             "OSPF interface $port->ifName is otherDesignatedRouter",
             'Could not handle ospfIfStateChange otherDesignatedRouter',
-            [Severity::Ok],
+            [1],
             $device,
         );
 
@@ -179,7 +178,7 @@ OSPF-MIB::ospfIfState.$ospfIf->ospfIfIpAddress.0 pointToPoint
 SNMPv2-MIB::snmpTrapEnterprise.0 JUNIPER-CHASSIS-DEFINES-MIB::jnxProductNameSRX240",
             "OSPF interface $port->ifName is pointToPoint",
             'Could not handle ospfIfStateChange pointToPoint',
-            [Severity::Ok],
+            [1],
             $device,
         );
 
@@ -208,7 +207,7 @@ OSPF-MIB::ospfIfState.$ospfIf->ospfIfIpAddress.0 waiting
 SNMPv2-MIB::snmpTrapEnterprise.0 JUNIPER-CHASSIS-DEFINES-MIB::jnxProductNameSRX240",
             "OSPF interface $port->ifName is waiting",
             'Could not handle ospfIfStateChange waiting',
-            [Severity::Warning],
+            [4],
             $device,
         );
 
@@ -237,7 +236,7 @@ OSPF-MIB::ospfIfState.$ospfIf->ospfIfIpAddress.0 loopback
 SNMPv2-MIB::snmpTrapEnterprise.0 JUNIPER-CHASSIS-DEFINES-MIB::jnxProductNameSRX240",
             "OSPF interface $port->ifName is loopback",
             'Could not handle ospfIfStateChange loopback',
-            [Severity::Warning],
+            [4],
             $device,
         );
 

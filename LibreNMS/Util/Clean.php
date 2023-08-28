@@ -58,15 +58,13 @@ class Clean
      * Clean a string for display in an html page.
      * For use in non-blade pages
      *
-     * @param  string|null  $value
+     * @param  string  $value
      * @param  array  $purifier_config  (key, value pair)
      * @return string
      */
-    public static function html($value, $purifier_config = []): string
+    public static function html($value, $purifier_config = [])
     {
-        if (empty($value)) {
-            return '';
-        }
+        static $purifier;
 
         // If $purifier_config is non-empty then we don't want
         // to convert html tags and allow these to be controlled
@@ -74,8 +72,6 @@ class Clean
         if (empty($purifier_config)) {
             $value = htmlentities($value);
         }
-
-        static $purifier;
 
         if (! $purifier instanceof HTMLPurifier) {
             // initialize HTML Purifier here since this is the only user

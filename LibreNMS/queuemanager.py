@@ -362,23 +362,18 @@ class BillingQueueManager(TimedQueueManager):
     def do_work(self, run_type, group):
         if run_type == "poll":
             logger.info("Polling billing")
-            args = ("-d") if self.config.debug else ()
-            exit_code, output = LibreNMS.call_script("poll-billing.php", args)
+            exit_code, output = LibreNMS.call_script("poll-billing.php")
+            if exit_code != 0:
+                logger.warning(
+                    "Error {} in Polling billing:\n{}".format(exit_code, output)
+                )
         else:  # run_type == 'calculate'
             logger.info("Calculating billing")
-            args = ("-d") if self.config.debug else ()
-            exit_code, output = LibreNMS.call_script("billing-calculate.php", args)
-
-        if exit_code != 0:
-            logger.warning(
-                "Error {} in {} billing:\n{}".format(exit_code, run_type, output)
-            )
-
-        if self.config.log_output:
-            with open(
-                "{}/dispatch_billing-{}.log".format(self.config.logdir, run_type), "a"
-            ) as log_file:
-                log_file.write(output)
+            exit_code, output = LibreNMS.call_script("billing-calculate.php")
+            if exit_code != 0:
+                logger.warning(
+                    "Error {} in Calculating billing:\n{}".format(exit_code, output)
+                )
 
 
 class PingQueueManager(TimedQueueManager):
@@ -406,19 +401,7 @@ class PingQueueManager(TimedQueueManager):
         if self.lock(group, "group", timeout=self.config.ping.frequency):
             try:
                 logger.info("Running fast ping")
-
-                args = ("-d", "-g", group) if self.config.debug else ("-g", group)
-                exit_code, output = LibreNMS.call_script("ping.php", args)
-
-                if self.config.log_output:
-                    with open(
-                        "{}/dispatch_group_{}_ping.log".format(
-                            self.config.logdir, group
-                        ),
-                        "a",
-                    ) as log_file:
-                        log_file.write(output)
-
+                exit_code, output = LibreNMS.call_script("ping.php", ("-g", group))
                 if exit_code != 0:
                     logger.warning(
                         "Running fast ping for {} failed with error code {}: {}".format(
@@ -456,18 +439,9 @@ class ServicesQueueManager(TimedQueueManager):
     def do_work(self, device_id, group):
         if self.lock(device_id, timeout=self.config.services.frequency):
             logger.info("Checking services on device {}".format(device_id))
-            args = ("-d", "-h", device_id) if self.config.debug else ("-h", device_id)
-            exit_code, output = LibreNMS.call_script("check-services.php", args)
-
-            if self.config.log_output:
-                with open(
-                    "{}/dispatch_device_{}_services.log".format(
-                        self.config.logdir, device_id
-                    ),
-                    "a",
-                ) as log_file:
-                    log_file.write(output)
-
+            exit_code, output = LibreNMS.call_script(
+                "check-services.php", ("-h", device_id)
+            )
             if exit_code == 0:
                 self.unlock(device_id)
             else:
@@ -506,16 +480,7 @@ class AlertQueueManager(TimedQueueManager):
 
     def do_work(self, device_id, group):
         logger.info("Checking alerts")
-        args = ("-d") if self.config.debug else ()
-        exit_code, output = LibreNMS.call_script("alerts.php", args)
-
-        if self.config.log_output:
-            with open(
-                "{}/dispatch_alerts.log".format(self.config.logdir),
-                "a",
-            ) as log_file:
-                log_file.write(output)
-
+        exit_code, output = LibreNMS.call_script("alerts.php")
         if exit_code != 0:
             if exit_code == 1:
                 logger.warning("There was an error issuing alerts: {}".format(output))
@@ -539,18 +504,7 @@ class PollerQueueManager(QueueManager):
         if self.lock(device_id, timeout=self.config.poller.frequency):
             logger.info("Polling device {}".format(device_id))
 
-            args = ("-d", "-h", device_id) if self.config.debug else ("-h", device_id)
-            exit_code, output = LibreNMS.call_script("poller.php", args)
-
-            if self.config.log_output:
-                with open(
-                    "{}/dispatch_device_{}_poller.log".format(
-                        self.config.logdir, device_id
-                    ),
-                    "a",
-                ) as log_file:
-                    log_file.write(output)
-
+            exit_code, output = LibreNMS.call_script("poller.php", ("-h", device_id))
             if exit_code == 0:
                 self.unlock(device_id)
             else:
@@ -603,19 +557,7 @@ class DiscoveryQueueManager(TimedQueueManager):
             device_id, timeout=LibreNMS.normalize_wait(self.config.discovery.frequency)
         ):
             logger.info("Discovering device {}".format(device_id))
-
-            args = ("-d", "-h", device_id) if self.config.debug else ("-h", device_id)
-            exit_code, output = LibreNMS.call_script("discovery.php", args)
-
-            if self.config.log_output:
-                with open(
-                    "{}/dispatch_device_{}_discovery.log".format(
-                        self.config.logdir, device_id
-                    ),
-                    "a",
-                ) as log_file:
-                    log_file.write(output)
-
+            exit_code, output = LibreNMS.call_script("discovery.php", ("-h", device_id))
             if exit_code == 0:
                 self.unlock(device_id)
             else:

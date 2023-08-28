@@ -52,7 +52,7 @@ $pagetitle[] = 'Health :: Storage';
         {
             return {
                 id: "storage",
-                view: '<?php echo htmlspecialchars($vars['view']); ?>'
+                view: '<?php echo $vars['view']; ?>'
             };
         },
         url: "ajax_table.php"

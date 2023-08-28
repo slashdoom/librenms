@@ -7,7 +7,8 @@ over:
     - { graph: device_toner, text: Toner }
 discovery:
     -
-         sysDescr_regex: '/SHARP (BP|MX)-/'
+        sysDescr:
+            - 'SHARP MX-'
 discovery_modules:
     printer-supplies:   true
 poller_modules:

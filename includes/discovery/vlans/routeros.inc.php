@@ -28,7 +28,6 @@
 // i.e: T,254,ether1 is translated to: tagged vlan 254 on ether1
 
 use App\Models\Vlan;
-use LibreNMS\Enum\Severity;
 
 $scripts = SnmpQuery::walk('MIKROTIK-MIB::mtxrScriptName')->table();
 $sIndex = array_flip($scripts['MIKROTIK-MIB::mtxrScriptName'] ?? [])['LNMS_vlans'] ?? null;
@@ -60,11 +59,11 @@ if (isset($sIndex)) {
             ]);
 
             if ($vlan->isDirty('vlan_name')) {
-                \App\Models\Eventlog::log("Vlan id: $vId changed name to: $vName from " . $vlan->getOriginal('vlan_name'), $device['device_id'], 'vlan', Severity::Warning);
+                \App\Models\Eventlog::log("Vlan id: $vId changed name to: $vName from " . $vlan->getOriginal('vlan_name'), $device['device_id'], 'vlan', 4);
             }
 
             if (! $vlan->exists) {
-                \App\Models\Eventlog::log("Vlan id: $vId: $vName added", $device['device_id'], 'vlan', Severity::Warning);
+                \App\Models\Eventlog::log("Vlan id: $vId: $vName added", $device['device_id'], 'vlan', 4);
             }
 
             $vlan->save();

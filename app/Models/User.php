@@ -13,18 +13,16 @@ use Illuminate\Support\Facades\Hash;
 use LibreNMS\Authentication\LegacyAuth;
 use NotificationChannels\WebPush\HasPushSubscriptions;
 use Permissions;
-use Silber\Bouncer\BouncerFacade as Bouncer;
-use Silber\Bouncer\Database\HasRolesAndAbilities;
 
 /**
  * @method static \Database\Factories\UserFactory factory(...$parameters)
  */
 class User extends Authenticatable
 {
-    use HasRolesAndAbilities, Notifiable, HasFactory, HasPushSubscriptions;
+    use Notifiable, HasFactory, HasPushSubscriptions;
 
     protected $primaryKey = 'user_id';
-    protected $fillable = ['realname', 'username', 'email', 'descr', 'can_modify_passwd', 'auth_type', 'auth_id', 'enabled'];
+    protected $fillable = ['realname', 'username', 'email', 'level', 'descr', 'can_modify_passwd', 'auth_type', 'auth_id', 'enabled'];
     protected $hidden = ['password', 'remember_token', 'pivot'];
     protected $attributes = [ // default values
         'descr' => '',
@@ -44,29 +42,31 @@ class User extends Authenticatable
 
     public function toFlare(): array
     {
-        return $this->only(['auth_type', 'enabled']);
+        return $this->only(['level', 'auth_type', 'enabled']);
     }
 
     // ---- Helper Functions ----
 
     /**
      * Test if this user has global read access
+     * these users have a level of 5, 10 or 11 (demo).
      *
      * @return bool
      */
     public function hasGlobalRead()
     {
-        return $this->isA('admin', 'global-read');
+        return $this->hasGlobalAdmin() || $this->level == 5;
     }
 
     /**
      * Test if this user has global admin access
+     * these users have a level of 10 or 11 (demo).
      *
      * @return bool
      */
     public function hasGlobalAdmin()
     {
-        return $this->isA('admin', 'demo');
+        return $this->level >= 10;
     }
 
     /**
@@ -76,7 +76,7 @@ class User extends Authenticatable
      */
     public function isAdmin()
     {
-        return $this->isA('admin');
+        return $this->level == 10;
     }
 
     /**
@@ -86,7 +86,7 @@ class User extends Authenticatable
      */
     public function isDemo()
     {
-        return $this->isA('demo');
+        return $this->level == 11;
     }
 
     /**
@@ -108,20 +108,6 @@ class User extends Authenticatable
     public function setPassword($password)
     {
         $this->attributes['password'] = $password ? Hash::make($password) : null;
-    }
-
-    /**
-     * Set roles and remove extra roles, optionally creating non-existent roles, flush permissions cache for this user if roles changed
-     */
-    public function setRoles(array $roles, bool $create = false): void
-    {
-        if ($roles != $this->getRoles()) {
-            if ($create) {
-                $this->assign($roles);
-            }
-            Bouncer::sync($this)->roles($roles);
-            Bouncer::refresh($this);
-        }
     }
 
     /**
@@ -181,7 +167,7 @@ class User extends Authenticatable
 
     public function scopeAdminOnly($query)
     {
-        $query->whereIs('admin');
+        $query->where('level', 10);
     }
 
     // ---- Accessors/Mutators ----
