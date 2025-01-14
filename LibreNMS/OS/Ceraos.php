@@ -34,10 +34,19 @@ use LibreNMS\Interfaces\Discovery\Sensors\WirelessFrequencyDiscovery;
 use LibreNMS\Interfaces\Discovery\Sensors\WirelessMseDiscovery;
 use LibreNMS\Interfaces\Discovery\Sensors\WirelessPowerDiscovery;
 use LibreNMS\Interfaces\Discovery\Sensors\WirelessRateDiscovery;
+use LibreNMS\Interfaces\Discovery\Sensors\WirelessRssiDiscovery;
 use LibreNMS\Interfaces\Discovery\Sensors\WirelessXpiDiscovery;
 use LibreNMS\OS;
 
-class Ceraos extends OS implements OSDiscovery, WirelessXpiDiscovery, WirelessFrequencyDiscovery, WirelessErrorsDiscovery, WirelessMseDiscovery, WirelessPowerDiscovery, WirelessRateDiscovery
+class Ceraos extends OS implements 
+    OSDiscovery,
+    WirelessXpiDiscovery,
+    WirelessFrequencyDiscovery,
+    WirelessErrorsDiscovery,
+    WirelessMseDiscovery,
+    WirelessPowerDiscovery,
+    WirelessRateDiscovery,
+    WirelessRssiDiscovery
 {
     public function discoverOS(Device $device): void
     {
@@ -269,6 +278,27 @@ class Ceraos extends OS implements OSDiscovery, WirelessXpiDiscovery, WirelessFr
                 $index,
                 $ifNames[$index] . ' RX Level',
                 $data['genEquipRfuStatusRxLevel']
+            );
+        }
+
+        return $sensors;
+    }
+
+    public function discoverWirelessRssi()
+    {
+        $ifNames = $this->getCacheByIndex('ifName', 'IF-MIB');
+
+        $sensors = [];
+        // MWRM-RADIO-MIB::genEquipRfuStatusRxLevel
+        $rssi = snmpwalk_group($this->getDeviceArray(), 'genEquipRfuStatusRxLevel', 'MWRM-RADIO-MIB');
+        foreach ($rssi as $index => $data) {
+            $sensors[] = new WirelessSensor(
+                'rssi',
+                $this->getDeviceId(),
+                '.1.3.6.1.4.1.2281.10.5.1.1.2.' . $index,
+                'ceraos',
+                $index,
+                $ifNames[$index] . ' RSSI',
             );
         }
 
