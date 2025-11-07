@@ -15,20 +15,30 @@ class PortsStatisticsMetrics
     {
         $lines = [];
 
-        // Parse filters
-        $filters = $this->parseDeviceFilters($request);
+        // Parse request parameters
+        $params = $this->parseMetricsParams($request);
 
         // Gather global metrics
-        if ($filters['device_ids']) {
-            // PortStatistic doesn't have device_id; translate device_ids -> port_ids
-            $portIdsForFilter = Port::whereIn('device_id', $filters['device_ids']->all())->pluck('port_id');
-            $total = PortStatistic::whereIn('port_id', $portIdsForFilter)->count();
-        } else {
-            $total = PortStatistic::count();
+        $totalAll = PortStatistic::count();
+        
+        // Append global metrics
+        $this->appendMetricBlock($lines, 'librenms_ports_statistics_total', 'Total number of port statistics in the system', 'gauge', "librenms_ports_statistics_total {$totalAll}");
+
+        // Return early if only global metrics are requested (default behavior)
+        if (!$this->shouldIncludeDeviceMetrics($params)) {
+            return implode("\n", $lines) . "\n";
         }
 
-        // Append global metrics
-        $this->appendMetricBlock($lines, 'librenms_ports_statistics_total', 'Total number of ports_statistics rows', 'gauge', [$total]);
+        // Calculate scraped total (what's actually included in this response)
+        $totalScraped = $totalAll; // Default: same as total
+        if ($params['device_ids'] !== null) {
+            // PortStatistic doesn't have device_id; translate device_ids -> port_ids
+            $portIdsForFilter = Port::whereIn('device_id', $params['device_ids']->all())->pluck('port_id');
+            $totalScraped = PortStatistic::whereIn('port_id', $portIdsForFilter)->count();
+        }
+
+        // Append scraped metrics
+        $this->appendMetricBlock($lines, 'librenms_ports_statistics_total_scraped', 'Number of port statistics included in this scrape', 'gauge', "librenms_ports_statistics_total_scraped {$totalScraped}");
 
         // Prepare per-port stats arrays
         $in_nucast_lines = [];
@@ -42,8 +52,8 @@ class PortsStatisticsMetrics
         $out_multicast_lines = [];
 
         // Preload device/port labels mapping
-        if ($filters['device_ids']) {
-            $portIds = Port::whereIn('device_id', $filters['device_ids']->all())->pluck('port_id');
+        if ($params['device_ids'] !== null) {
+            $portIds = Port::whereIn('device_id', $params['device_ids']->all())->pluck('port_id');
         } else {
             $portIds = PortStatistic::select('port_id')->distinct()->pluck('port_id');
         }
@@ -51,7 +61,7 @@ class PortsStatisticsMetrics
         $deviceIds = $ports->pluck('device_id')->unique();
         $devices = Device::select('device_id', 'hostname', 'sysName', 'type')->whereIn('device_id', $deviceIds)->get()->keyBy('device_id');
 
-        if ($filters['device_ids']) {
+        if ($params['device_ids'] !== null) {
             $psQuery = PortStatistic::whereIn('port_id', $portIds);
         } else {
             $psQuery = PortStatistic::query();

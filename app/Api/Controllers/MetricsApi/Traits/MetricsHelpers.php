@@ -10,53 +10,63 @@ use Illuminate\Support\Facades\DB;
 trait MetricsHelpers
 {
     /**
-     * Parse device / device group filters from the Request.
+     * Parse request parameters for metrics collection.
      * Supports:
-     * - device_id (single), device_ids (comma-separated)
-     * - hostname (single), hostnames (comma-separated)
-     * - device_group (id or name) which will expand to device ids in that group
-     * Returns an array with key 'device_ids' => Collection|null
+     * - include_devices (boolean) to include per-device/per-entity metrics (default: false)
+     * - device_id (single), device_ids (comma-separated) - only when include_devices=true
+     * - hostname (single), hostnames (comma-separated) - only when include_devices=true
+     * - device_group (id or name) which will expand to device ids - only when include_devices=true
+     * Returns an array with keys 'device_ids' => Collection|null, 'include_devices' => bool
      */
-    private function parseDeviceFilters(Request $request): array
+    private function parseMetricsParams(Request $request): array
     {
+        // Check if per-entity metrics are requested (default: false for global-only)
+        $includeDevices = $request->boolean('include_devices', false);
+        
         $deviceIds = collect();
-
-        // single or comma-separated device ids
-        if ($request->filled('device_id')) {
-            $deviceIds = $deviceIds->merge(array_map('trim', explode(',', $request->get('device_id'))));
-        }
-        if ($request->filled('device_ids')) {
-            $deviceIds = $deviceIds->merge(array_map('trim', explode(',', $request->get('device_ids'))));
-        }
-
-        // hostname(s)
-        $hostnames = collect();
-        if ($request->filled('hostname')) {
-            $hostnames = $hostnames->merge(array_map('trim', explode(',', $request->get('hostname'))));
-        }
-        if ($request->filled('hostnames')) {
-            $hostnames = $hostnames->merge(array_map('trim', explode(',', $request->get('hostnames'))));
-        }
-        if ($hostnames->isNotEmpty()) {
-            $fromHost = Device::whereIn('hostname', $hostnames)->orWhereIn('sysName', $hostnames)->pluck('device_id');
-            $deviceIds = $deviceIds->merge($fromHost);
-        }
-
-        // device_group may be id (numeric) or name; expand to device ids
-        if ($request->filled('device_group')) {
-            $dg = trim($request->get('device_group'));
-            if (ctype_digit($dg)) {
-                $groupId = (int) $dg;
-                $fromGroup = DB::table('device_group_device')->where('device_group_id', $groupId)->pluck('device_id');
-            } else {
-                $fromGroup = DB::table('device_groups')->where('name', $dg)->join('device_group_device', 'device_groups.id', '=', 'device_group_device.device_group_id')->pluck('device_group_device.device_id');
+        
+        // Only parse device filters if per-entity metrics are requested
+        if ($includeDevices) {
+            // single or comma-separated device ids
+            if ($request->filled('device_id')) {
+                $deviceIds = $deviceIds->merge(array_map('trim', explode(',', $request->get('device_id'))));
             }
-            $deviceIds = $deviceIds->merge($fromGroup);
+            if ($request->filled('device_ids')) {
+                $deviceIds = $deviceIds->merge(array_map('trim', explode(',', $request->get('device_ids'))));
+            }
+
+            // hostname(s)
+            $hostnames = collect();
+            if ($request->filled('hostname')) {
+                $hostnames = $hostnames->merge(array_map('trim', explode(',', $request->get('hostname'))));
+            }
+            if ($request->filled('hostnames')) {
+                $hostnames = $hostnames->merge(array_map('trim', explode(',', $request->get('hostnames'))));
+            }
+            if ($hostnames->isNotEmpty()) {
+                $fromHost = Device::whereIn('hostname', $hostnames)->orWhereIn('sysName', $hostnames)->pluck('device_id');
+                $deviceIds = $deviceIds->merge($fromHost);
+            }
+
+            // device_group may be id (numeric) or name; expand to device ids
+            if ($request->filled('device_group')) {
+                $dg = trim($request->get('device_group'));
+                if (ctype_digit($dg)) {
+                    $groupId = (int) $dg;
+                    $fromGroup = DB::table('device_group_device')->where('device_group_id', $groupId)->pluck('device_id');
+                } else {
+                    $fromGroup = DB::table('device_groups')->where('name', $dg)->join('device_group_device', 'device_groups.id', '=', 'device_group_device.device_group_id')->pluck('device_group_device.device_id');
+                }
+                $deviceIds = $deviceIds->merge($fromGroup);
+            }
+
+            $deviceIds = $deviceIds->filter(fn ($v) => $v !== null && $v !== '')->unique()->values();
         }
 
-        $deviceIds = $deviceIds->filter(fn ($v) => $v !== null && $v !== '')->unique()->values();
-
-        return ['device_ids' => $deviceIds->isEmpty() ? null : $deviceIds];
+        return [
+            'device_ids' => $deviceIds->isEmpty() ? null : $deviceIds,
+            'include_devices' => $includeDevices,
+        ];
     }
 
     /**
@@ -124,5 +134,23 @@ trait MetricsHelpers
         if (! empty($metricLinesArr)) {
             $lines = array_merge($lines, $metricLinesArr);
         }
+    }
+
+    /**
+     * Check if per-device metrics should be included based on the parsed parameters.
+     */
+    private function shouldIncludeDeviceMetrics(array $params): bool
+    {
+        return $params['include_devices'] ?? false;
+    }
+
+    /**
+     * Legacy method name for backwards compatibility during transition.
+     * @deprecated Use parseMetricsParams() instead
+     */
+    private function parseDeviceFilters(Request $request): array
+    {
+        $params = $this->parseMetricsParams($request);
+        return ['device_ids' => $params['device_ids']];
     }
 }

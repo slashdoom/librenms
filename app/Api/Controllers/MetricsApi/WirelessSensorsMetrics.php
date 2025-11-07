@@ -14,15 +14,24 @@ class WirelessSensorsMetrics
     {
         $lines = [];
 
-        // Parse filters
-        $filters = $this->parseDeviceFilters($request);
+        // Parse request parameters
+        $params = $this->parseMetricsParams($request);
 
         // Gather global metrics
-        $totalQ = WirelessSensor::query();
-        $total = $this->applyDeviceFilter($totalQ, $filters['device_ids'])->count();
+        $total_all = WirelessSensor::query()->count();
+        $total_scraped = $total_all;
+        if ($params['include_devices'] && $params['device_ids'] !== null) {
+            $total_scraped = $this->applyDeviceFilter(WirelessSensor::query(), $params['device_ids'])->count();
+        }
 
         // Append global metrics
-        $this->appendMetricBlock($lines, 'librenms_wireless_sensors_total', 'Total number of wireless sensors', 'gauge', [$total]);
+        $this->appendMetricBlock($lines, 'librenms_wireless_sensors_total', 'Total number of wireless sensors in the system', 'gauge', "librenms_wireless_sensors_total {$total_all}");
+        $this->appendMetricBlock($lines, 'librenms_wireless_sensors_total_scraped', 'Number of wireless sensors included in this scrape', 'gauge', "librenms_wireless_sensors_total_scraped {$total_scraped}");
+
+        // Return early if only global metrics are requested (default behavior)
+        if (!$this->shouldIncludeDeviceMetrics($params)) {
+            return implode("\n", $lines) . "\n";
+        }
 
         // Group outputs by rrd_type
         $gauge_value_lines = [];
@@ -34,11 +43,11 @@ class WirelessSensorsMetrics
 
         // Gather device info mapping for labels
         $deviceIdsQuery = WirelessSensor::select('device_id')->distinct();
-        $deviceIds = $this->applyDeviceFilter($deviceIdsQuery, $filters['device_ids'])->pluck('device_id');
-        $devices = Device::select('device_id', 'hostname', 'sysName')->whereIn('device_id', $deviceIds)->get()->keyBy('device_id');
+        $deviceIds = $this->applyDeviceFilter($deviceIdsQuery, $params['device_ids'])->pluck('device_id');
+        $devices = Device::select('device_id', 'hostname', 'sysName', 'type')->whereIn('device_id', $deviceIds)->get()->keyBy('device_id');
 
-        $sensorQuery = WirelessSensor::select('sensor_id', 'device_id', 'sensor_class', 'sensor_type', 'sensor_descr', 'sensor_current', 'sensor_multiplier', 'sensor_divisor', 'sensor_limit_warn', 'sensor_limit');
-        $rows = $this->applyDeviceFilter($sensorQuery, $filters['device_ids'])->cursor();
+        $sensorQuery = WirelessSensor::select('sensor_id', 'device_id', 'sensor_class', 'sensor_type', 'sensor_descr', 'sensor_current', 'sensor_divisor', 'sensor_multiplier', 'sensor_limit_warn', 'sensor_limit', 'group', 'rrd_type');
+        $rows = $this->applyDeviceFilter($sensorQuery, $params['device_ids'])->cursor();
 
         foreach ($rows as $s) {
             $dev = $devices->get($s->device_id);

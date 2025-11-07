@@ -13,21 +13,38 @@ class DevicesMetrics
     {
         $lines = [];
 
-        // Parse filters
-        $filters = $this->parseDeviceFilters($request);
+        // Parse request parameters
+        $params = $this->parseMetricsParams($request);
 
-        // Gather global metrics
-        $totalQ = Device::query();
-        $upQ = Device::query()->where('status', 1);
-        $downQ = Device::query()->where('status', 0);
-        $total = $this->applyDeviceFilter($totalQ, $filters['device_ids'])->count();
-        $up = $this->applyDeviceFilter($upQ, $filters['device_ids'])->count();
-        $down = $this->applyDeviceFilter($downQ, $filters['device_ids'])->count();
-
+        // Gather global metrics (always show total system counts)
+        $totalAll = Device::query()->count();
+        $upAll = Device::query()->where('status', 1)->count();
+        $downAll = Device::query()->where('status', 0)->count();
+        
         // Append global metrics
-        $this->appendMetricBlock($lines, 'librenms_devices_total', 'Total number of devices', 'gauge', ["librenms_devices_total {$total}"]);
-        $this->appendMetricBlock($lines, 'librenms_devices_up', 'Number of devices currently up', 'gauge', ["librenms_devices_up {$up}"]);
-        $this->appendMetricBlock($lines, 'librenms_devices_down', 'Number of devices currently down', 'gauge', ["librenms_devices_down {$down}"]);
+        $this->appendMetricBlock($lines, 'librenms_devices_total', 'Total number of devices in the system', 'gauge', ["librenms_devices_total {$totalAll}"]);
+        $this->appendMetricBlock($lines, 'librenms_devices_up', 'Number of devices currently up (system-wide)', 'gauge', ["librenms_devices_up {$upAll}"]);
+        $this->appendMetricBlock($lines, 'librenms_devices_down', 'Number of devices currently down (system-wide)', 'gauge', ["librenms_devices_down {$downAll}"]);
+
+        // Return early if only global metrics are requested (default behavior)
+        if (!$this->shouldIncludeDeviceMetrics($params)) {
+            return implode("\n", $lines) . "\n";
+        }
+
+        // Calculate scraped totals (what's actually included in this response)
+        $totalScraped = $totalAll;
+        $upScraped = $upAll;
+        $downScraped = $downAll;
+        if ($params['device_ids'] !== null) {
+            $totalScraped = $this->applyDeviceFilter(Device::query(), $params['device_ids'])->count();
+            $upScraped = $this->applyDeviceFilter(Device::query()->where('status', 1), $params['device_ids'])->count();
+            $downScraped = $this->applyDeviceFilter(Device::query()->where('status', 0), $params['device_ids'])->count();
+        }
+
+        // Append scraped metrics
+        $this->appendMetricBlock($lines, 'librenms_devices_total_scraped', 'Number of devices included in this scrape', 'gauge', ["librenms_devices_total_scraped {$totalScraped}"]);
+        $this->appendMetricBlock($lines, 'librenms_devices_up_scraped', 'Number of up devices included in this scrape', 'gauge', ["librenms_devices_up_scraped {$upScraped}"]);
+        $this->appendMetricBlock($lines, 'librenms_devices_down_scraped', 'Number of down devices included in this scrape', 'gauge', ["librenms_devices_down_scraped {$downScraped}"]);
 
         // Prepare per-device arrays
         $device_up_lines = [];
@@ -38,7 +55,7 @@ class DevicesMetrics
 
         // Gather per-device metrics
         $deviceQuery = Device::select('device_id', 'hostname', 'sysName', 'type', 'status', 'last_polled_timetaken', 'last_discovered_timetaken', 'last_ping_timetaken', 'uptime');
-        $deviceQuery = $this->applyDeviceFilter($deviceQuery, $filters['device_ids']);
+        $deviceQuery = $this->applyDeviceFilter($deviceQuery, $params['device_ids']);
         foreach ($deviceQuery->cursor() as $device) {
             $labels = sprintf('device_id="%s",device_hostname="%s",device_sysName="%s",device_type="%s"',
                 $device->device_id,

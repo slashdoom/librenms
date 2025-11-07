@@ -14,15 +14,28 @@ class AccessPointsMetrics
     {
         $lines = [];
 
-        // Parse filters
-        $filters = $this->parseDeviceFilters($request);
+        // Parse request parameters
+        $params = $this->parseMetricsParams($request);
 
         // Gather global metrics
-        $totalQ = AccessPoint::query();
-        $total = $this->applyDeviceFilter($totalQ, $filters['device_ids'])->count();
-
+        $totalAll = AccessPoint::query()->count();
+        
         // Append global metrics
-        $this->appendMetricBlock($lines, 'librenms_access_points_total', 'Total number of access points', 'gauge', "librenms_access_points_total {$total}");
+        $this->appendMetricBlock($lines, 'librenms_access_points_total', 'Total number of access points in the system', 'gauge', "librenms_access_points_total {$totalAll}");
+
+        // Return early if only global metrics are requested (default behavior)
+        if (!$this->shouldIncludeDeviceMetrics($params)) {
+            return implode("\n", $lines) . "\n";
+        }
+
+        // Calculate scraped total (what's actually included in this response)
+        $totalScraped = $totalAll; // Default: same as total
+        if ($params['device_ids'] !== null) {
+            $totalScraped = $this->applyDeviceFilter(AccessPoint::query(), $params['device_ids'])->count();
+        }
+
+        // Append global scraped metrics
+        $this->appendMetricBlock($lines, 'librenms_access_points_total_scraped', 'Number of access points included in this scrape', 'gauge', "librenms_access_points_total_scraped {$totalScraped}");
 
         // Prepare per-access-point metrics arrays
         $deleted_lines = [];
@@ -37,12 +50,12 @@ class AccessPointsMetrics
 
         // Gather device info mapping for labels
         $deviceIdsQuery = AccessPoint::select('device_id')->distinct();
-        $deviceIdsQuery = $this->applyDeviceFilter($deviceIdsQuery, $filters['device_ids']);
+        $deviceIdsQuery = $this->applyDeviceFilter($deviceIdsQuery, $params['device_ids']);
         $deviceIds = $deviceIdsQuery->pluck('device_id');
         $devices = Device::select('device_id', 'hostname', 'sysName', 'type')->whereIn('device_id', $deviceIds)->get()->keyBy('device_id');
 
         $apQuery = AccessPoint::select('accesspoint_id', 'device_id', 'name', 'radio_number', 'type', 'mac_addr', 'deleted', 'channel', 'txpow', 'radioutil', 'numasoclients', 'nummonclients', 'numactbssid', 'nummonbssid', 'interference');
-        $apQuery = $this->applyDeviceFilter($apQuery, $filters['device_ids']);
+        $apQuery = $this->applyDeviceFilter($apQuery, $params['device_ids']);
         foreach ($apQuery->cursor() as $ap) {
             $dev = $devices->get($ap->device_id);
             $device_hostname = $dev ? $this->escapeLabel((string) $dev->hostname) : '';

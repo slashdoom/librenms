@@ -7,7 +7,9 @@ LibreNMS provides two methods for integrating with Prometheus:
 
 ## Scrape
 
-The Scrape method allows Prometheus to directly scrape metrics from LibreNMS using dedicated metrics API endpoints. This deviates from how most of the metrics exporters function. The upside is that this method is not tied to LibreNMS polling, and therefore doesn't increase polling time/load. It does however involve Prometheus pulling large amounts of data from the LibreNMS web server which queries the LibreNMS database. Please test to make sure these systems are up to the task before scraping all endpoints.
+The Scrape method allows Prometheus to directly scrape device metrics from LibreNMS using dedicated metrics API endpoints. This enables you to export monitoring data for all devices managed by LibreNMS into Prometheus for analysis, alerting, and visualization.
+
+This approach involves Prometheus pulling device data from the LibreNMS web server which queries the LibreNMS database. The amount of data exported depends on your device count and filtering configuration, so performance testing is recommended for large deployments.
 
 ### Requirements
 
@@ -43,24 +45,38 @@ Create an API token in LibreNMS:
 5. Click 'Create API Token'
 6. Save the generated token securely
 
-### Device Filtering
+### Device Data Export
 
-All metrics endpoints except pollers support filtering to specific devices or device groups.  The pollers endpoint is for monitoring of LibreNMS itself, not monitored devices.
+To export device metrics to Prometheus, you must use the `include_devices=true` parameter. Without this parameter, endpoints only return aggregate counts suitable for monitoring LibreNMS itself, not the individual devices it monitors.
 
 ```yaml
-# Scrape only specific devices
-metrics_path: /api/v0/metrics/ports
+# Export device metrics to Prometheus
+- job_name: 'librenms-devices'
+  scrape_interval: 300s  # Recommended interval
+  scrape_timeout: 60s    # Allow time for large queries
+  metrics_path: /api/v0/metrics/devices
+  params:
+    include_devices: ['true']
+```
+
+### Device Filtering
+
+Use filtering to control which devices are exported to Prometheus:
+
+```yaml
+# Export specific devices by ID
 params:
+  include_devices: ['true']
   device_ids: ['1,2,3']
 
-# Scrape devices by hostname
-metrics_path: /api/v0/metrics/sensors
+# Export devices by hostname
 params:
+  include_devices: ['true'] 
   hostnames: ['sw01,sw02,fw01']
 
-# Scrape devices in a group
-metrics_path: /api/v0/metrics/devices
+# Export devices by group (recommended for large deployments)
 params:
+  include_devices: ['true']
   device_group: ['core-switches']
 ```
 
@@ -68,79 +84,100 @@ params:
 
 Configure your `prometheus.yml` to scrape LibreNMS metrics:
 
-#### Basic Configuration
+#### Basic Device Export Configuration
+
+Export device data from LibreNMS to Prometheus:
 
 ```yaml
 global:
-  scrape_interval: 60s
+  scrape_interval: 300s  # 5 minutes (match LibreNMS polling)
 
 scrape_configs:
-  # Device-level metrics
+  # Device status and performance metrics
   - job_name: 'librenms-devices'
     static_configs:
       - targets: ['your.librenms.example:443']
     scheme: https
     metrics_path: /api/v0/metrics/devices
+    params:
+      include_devices: ['true']
     headers:
       X-Auth-Token: 'YOURAPITOKENHERE'
-    scrape_interval: 150s
+    scrape_interval: 300s
+    scrape_timeout: 60s
 
-  # Port/interface metrics
+  # Network port metrics
   - job_name: 'librenms-ports'
     static_configs:
       - targets: ['your.librenms.example:443']
     scheme: https
     metrics_path: /api/v0/metrics/ports
+    params:
+      include_devices: ['true']
     headers:
       X-Auth-Token: 'YOURAPITOKENHERE'
-    scrape_interval: 150s
+    scrape_interval: 150s  # More frequent for network metrics
+    scrape_timeout: 30s
 
-  # Hardware sensor metrics
+  # Hardware sensor data
   - job_name: 'librenms-sensors'
     static_configs:
       - targets: ['your.librenms.example:443']
     scheme: https
     metrics_path: /api/v0/metrics/sensors
+    params:
+      include_devices: ['true']
     headers:
       X-Auth-Token: 'YOURAPITOKENHERE'
-    scrape_interval: 150s
-
-  # Alert metrics
-  - job_name: 'librenms-alerts'
-    static_configs:
-      - targets: ['your.librenms.example:443']
-    scheme: https
-    metrics_path: /api/v0/metrics/alerts
-    headers:
-      X-Auth-Token: 'YOURAPITOKENHERE'
-    scrape_interval: 150s
+    scrape_interval: 300s
+    scrape_timeout: 30s
 ```
 
-#### Advanced Configuration with Filtering
+#### Filtered Device Export (Recommended for Large Deployments)
+
+Use device group filtering to export only specific devices:
 
 ```yaml
 scrape_configs:
-  # Core network devices only
-  - job_name: 'librenms-core-devices'
+  # Critical infrastructure only
+  - job_name: 'librenms-critical-devices'
     static_configs:
       - targets: ['your.librenms.example:443']
     scheme: https
     metrics_path: /api/v0/metrics/devices
     params:
+      include_devices: ['true']
       device_group: ['core-switches', 'core-routers']
     headers:
       X-Auth-Token: 'YOURAPITOKENHERE'
-    scrape_interval: 150s
+    scrape_interval: 300s
+    scrape_timeout: 60s
 
-  # Application metrics
-  - job_name: 'librenms-applications'
+  # Server monitoring
+  - job_name: 'librenms-servers'
     static_configs:
       - targets: ['your.librenms.example:443']
     scheme: https
-    metrics_path: /api/v0/metrics/applications
+    metrics_path: /api/v0/metrics/devices
+    params:
+      include_devices: ['true']
+      device_group: ['servers']
     headers:
       X-Auth-Token: 'YOURAPITOKENHERE'
-    scrape_interval: 150s
+    scrape_interval: 300s
+
+  # Application metrics for servers
+  - job_name: 'librenms-applications'
+    static_configs:
+      - targets: ['your.librenms.example:443'] 
+    scheme: https
+    metrics_path: /api/v0/metrics/applications
+    params:
+      include_devices: ['true']
+      device_group: ['application-servers']
+    headers:
+      X-Auth-Token: 'YOURAPITOKENHERE'
+    scrape_interval: 300s
 ```
 
 ### Scrape Intervals
@@ -181,37 +218,87 @@ Example:
 
 So a series of 500,500,600,600,600,700,800,800.  So if you run your rate function against the data with a 5 minutes step interval, all polls will be accounted for.
 
-#### Device Filtering
+### Performance Considerations
 
-Use device filtering to reduce metric volume and improve performance:
+#### Resource Impact of Device Export
 
-```yaml
-# Instead of scraping all devices
-metrics_path: /api/v0/metrics/ports
+Device data export with `include_devices=true` has significant resource requirements:
 
-# Filter to specific device groups
-metrics_path: /api/v0/metrics/ports
-params:
-  device_group: ['production-switches']
+- **Response time**: 500ms - 10+ seconds depending on device count
+- **Database load**: Heavy (per-entity queries with JOINs)
+- **Memory usage**: High (proportional to entity count)
+- **Cardinality**: 100s to 10,000s+ metrics per endpoint
+- **Network bandwidth**: Large response bodies
+
+#### Scaling Guidelines for Device Export
+
+**Small deployments (< 100 devices)**
+- Can export all devices on most endpoints
+- Use 150s scrape intervals to avoid poller drift
+- Monitor LibreNMS web server and database load
+
+**Medium deployments (100-1000 devices)**
+- Use device group filtering to export subsets
+- Use 300s+ scrape intervals
+- Consider separate Prometheus instances for different device groups
+- Monitor query performance and response times
+
+**Large deployments (1000+ devices)**
+- Mandatory device group filtering
+- Export only critical devices to Prometheus
+- Consider federation or separate monitoring clusters
+- Monitor LibreNMS database performance impact carefully
+- Use multiple LibreNMS instances if needed
+
+#### Optimization Strategies for Device Export
+
+1. **Filter by device groups**: `device_group: ['critical-infrastructure']`
+2. **Stagger scrape intervals**: Different intervals for different endpoints
+3. **Monitor selectively**: Export only devices that need Prometheus analysis
+4. **Split by purpose**: Separate jobs for alerting vs. capacity planning
+5. **Scale horizontally**: Multiple Prometheus instances for large deployments
+6. **Database optimization**: Ensure proper indexing on device-related tables
+
+### Example Device Metrics
+
+When `include_devices=true` is used, you'll get detailed per-device metrics like these:
+
+#### Device Status and Performance
+```
+# Device operational status
+librenms_devices_status{device_id="1",device_hostname="sw01",device_sysName="sw01.example.com",device_type="network",device_os="ios"} 1
+
+# Device uptime
+librenms_devices_uptime_seconds{device_id="1",device_hostname="sw01",device_sysName="sw01.example.com"} 8640000
+
+# Polling performance
+librenms_devices_last_polled_timetaken_seconds{device_id="1",device_hostname="sw01",device_sysName="sw01.example.com"} 12.5
 ```
 
-### Example Metrics
+#### Network Port Metrics
+```
+# Port traffic counters
+librenms_ports_ifInOctets_total{device_id="1",device_hostname="sw01",port_id="1",ifName="GigabitEthernet0/1",ifAlias="uplink"} 1234567890
+librenms_ports_ifOutOctets_total{device_id="1",device_hostname="sw01",port_id="1",ifName="GigabitEthernet0/1",ifAlias="uplink"} 9876543210
 
-#### Device Status
-```
-librenms_devices_up{device_id="1",device_hostname="sw01",device_type="network"} 1
-librenms_devices_uptime_seconds{device_id="1",device_hostname="sw01"} 8640000
-```
-
-#### Port Traffic
-```
-librenms_ports_ifInOctets_total{device_id="1",port_id="1",ifName="GigabitEthernet0/1"} 1234567890
-librenms_ports_ifOutOctets_total{device_id="1",port_id="1",ifName="GigabitEthernet0/1"} 9876543210
+# Port status
+librenms_ports_ifOperStatus{device_id="1",device_hostname="sw01",port_id="1",ifName="GigabitEthernet0/1"} 1
 ```
 
-#### Temperature Sensors
+#### Hardware Sensors
 ```
-librenms_sensors_temperature_celsius{device_id="1",sensor_id="1",sensor_descr="CPU Temperature"} 42.5
+# Temperature readings
+librenms_sensors_temperature_celsius{device_id="1",device_hostname="sw01",sensor_id="1",sensor_descr="CPU Temperature",sensor_class="temperature"} 42.5
+
+# Power consumption
+librenms_sensors_power_watts{device_id="1",device_hostname="sw01",sensor_id="2",sensor_descr="PSU1 Power",sensor_class="power"} 150.3
+```
+
+#### Application Metrics
+```
+# Application performance data
+librenms_applications_metric{device_id="2",device_hostname="web01",device_sysName="web01.example.com",app_type="nginx",app_instance="default",metric="connections_active"} 42
+librenms_applications_metric{device_id="2",device_hostname="web01",device_sysName="web01.example.com",app_type="nginx",app_instance="default",metric="requests_per_second"} 156.7
 ```
 
 ## Push Gateway

@@ -15,24 +15,37 @@ class ApplicationsMetrics
     {
         $lines = [];
 
-        // Parse filters
-        $filters = $this->parseDeviceFilters($request);
+        // Parse request parameters
+        $params = $this->parseMetricsParams($request);
 
         // Gather global metrics
-        $totalQ = ApplicationMetric::query();
-        // apply device filter via join
-        if ($filters['device_ids']) {
-            $totalQ = $totalQ->join('applications', 'application_metrics.app_id', '=', 'applications.app_id')->whereIn('applications.device_id', $filters['device_ids']->all());
+        $totalAll = ApplicationMetric::query()->count();
+        
+        // Append global metrics
+        $this->appendMetricBlock($lines, 'librenms_applications_metrics_total', 'Total number of application metrics in the system', 'gauge', "librenms_applications_metrics_total {$totalAll}");
+
+        // Return early if only global metrics are requested (default behavior)
+        if (!$this->shouldIncludeDeviceMetrics($params)) {
+            return implode("\n", $lines) . "\n";
         }
-        $total = $totalQ->count();
-        $this->appendMetricBlock($lines, 'librenms_applications_metrics_total', 'Total number of application metrics rows', 'gauge', ["librenms_applications_metrics_total {$total}"]);
+
+        // Calculate scraped total (what's actually included in this response)
+        $totalScraped = $totalAll; // Default: same as total
+        if ($params['device_ids'] !== null) {
+            $totalScraped = ApplicationMetric::join('applications', 'application_metrics.app_id', '=', 'applications.app_id')
+                ->whereIn('applications.device_id', $params['device_ids']->all())
+                ->count();
+        }
+
+        // Append scraped metrics
+        $this->appendMetricBlock($lines, 'librenms_applications_metrics_total_scraped', 'Number of application metrics included in this scrape', 'gauge', "librenms_applications_metrics_total_scraped {$totalScraped}");
 
         $metric_lines = [];
 
         // Get device ids referenced by application metrics so we can preload devices
         $appJoin = Application::join('application_metrics', 'applications.app_id', '=', 'application_metrics.app_id')->distinct();
-        if ($filters['device_ids']) {
-            $appJoin = $appJoin->whereIn('applications.device_id', $filters['device_ids']->all());
+        if ($params['device_ids'] !== null) {
+            $appJoin = $appJoin->whereIn('applications.device_id', $params['device_ids']->all());
         }
         $deviceIds = $appJoin->pluck('applications.device_id');
 
@@ -49,8 +62,8 @@ class ApplicationsMetrics
                 'applications.app_type',
                 'applications.app_instance'
             );
-        if ($filters['device_ids']) {
-            $query->whereIn('applications.device_id', $filters['device_ids']->all());
+        if ($params['device_ids'] !== null) {
+            $query->whereIn('applications.device_id', $params['device_ids']->all());
         }
 
         /** @var \stdClass $am */

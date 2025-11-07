@@ -14,26 +14,39 @@ class ProcessorsMetrics
     {
         $lines = [];
 
-        // Parse filters
-        $filters = $this->parseDeviceFilters($request);
+        // Parse request parameters
+        $params = $this->parseMetricsParams($request);
 
         // Gather global metrics
-        $totalQ = Processor::query();
-        $total = $this->applyDeviceFilter($totalQ, $filters['device_ids'])->count();
-
+        $totalAll = Processor::query()->count();
+        
         // Append global metrics
-        $this->appendMetricBlock($lines, 'librenms_processors_total', 'Total number of processors', 'gauge', [$total]);
+        $this->appendMetricBlock($lines, 'librenms_processors_total', 'Total number of processors in the system', 'gauge', "librenms_processors_total {$totalAll}");
+
+        // Return early if only global metrics are requested (default behavior)
+        if (!$this->shouldIncludeDeviceMetrics($params)) {
+            return implode("\n", $lines) . "\n";
+        }
+
+        // Calculate scraped total (what's actually included in this response)
+        $totalScraped = $totalAll; // Default: same as total
+        if ($params['device_ids'] !== null) {
+            $totalScraped = $this->applyDeviceFilter(Processor::query(), $params['device_ids'])->count();
+        }
+
+        // Append scraped metrics
+        $this->appendMetricBlock($lines, 'librenms_processors_total_scraped', 'Number of processors included in this scrape', 'gauge', "librenms_processors_total_scraped {$totalScraped}");
 
         $usage_lines = [];
 
         // Gather device info mapping for labels
         $deviceIdsQuery = Processor::select('device_id')->distinct();
-        $deviceIdsQuery = $this->applyDeviceFilter($deviceIdsQuery, $filters['device_ids']);
+        $deviceIdsQuery = $this->applyDeviceFilter($deviceIdsQuery, $params['device_ids']);
         $deviceIds = $deviceIdsQuery->pluck('device_id');
         $devices = Device::select('device_id', 'hostname', 'sysName', 'type')->whereIn('device_id', $deviceIds)->get()->keyBy('device_id');
 
         $procQuery = Processor::select('processor_id', 'device_id', 'processor_descr', 'processor_index', 'processor_type', 'processor_usage');
-        $procQuery = $this->applyDeviceFilter($procQuery, $filters['device_ids']);
+        $procQuery = $this->applyDeviceFilter($procQuery, $params['device_ids']);
         foreach ($procQuery->cursor() as $p) {
             $dev = $devices->get($p->device_id);
             $device_hostname = $dev ? $this->escapeLabel((string) $dev->hostname) : '';

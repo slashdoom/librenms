@@ -14,15 +14,28 @@ class SensorsMetrics
     {
         $lines = [];
 
-        // Parse filters
-        $filters = $this->parseDeviceFilters($request);
+        // Parse request parameters
+        $params = $this->parseMetricsParams($request);
 
         // Gather global metrics
-        $totalQ = Sensor::query();
-        $total = $this->applyDeviceFilter($totalQ, $filters['device_ids'])->count();
+        $total_all = Sensor::query()->count();
 
         // Append global metrics
-        $this->appendMetricBlock($lines, 'librenms_sensors_total', 'Total number of sensors', 'gauge', [$total]);
+        $this->appendMetricBlock($lines, 'librenms_sensors_total', 'Total number of sensors in the system', 'gauge', "librenms_sensors_total {$total_all}");
+
+        // Return early if only global metrics are requested (default behavior)
+        if (!$this->shouldIncludeDeviceMetrics($params)) {
+            return implode("\n", $lines) . "\n";
+        }
+
+        // Calculate scraped total (what's actually included in this response)
+        $total_scraped = $total_all;
+        if ($params['include_devices'] && $params['device_ids'] !== null) {
+            $total_scraped = $this->applyDeviceFilter(Sensor::query(), $params['device_ids'])->count();
+        }
+
+        // Append scraped metrics
+        $this->appendMetricBlock($lines, 'librenms_sensors_total_scraped', 'Number of sensors included in this scrape', 'gauge', "librenms_sensors_total_scraped {$total_scraped}");
 
         // Group outputs by rrd_type
         $gauge_value_lines = [];
@@ -33,12 +46,12 @@ class SensorsMetrics
         $counter_limit_crit_lines = [];
 
         $deviceIdsQuery = Sensor::select('device_id')->distinct();
-        $deviceIdsQuery = $this->applyDeviceFilter($deviceIdsQuery, $filters['device_ids']);
+        $deviceIdsQuery = $this->applyDeviceFilter($deviceIdsQuery, $params['device_ids']);
         $deviceIds = $deviceIdsQuery->pluck('device_id');
         $devices = Device::select('device_id', 'hostname', 'sysName', 'type')->whereIn('device_id', $deviceIds)->get()->keyBy('device_id');
 
         $sensorQuery = Sensor::select('sensor_id', 'device_id', 'sensor_class', 'sensor_type', 'sensor_descr', 'sensor_current', 'sensor_divisor', 'sensor_multiplier', 'sensor_limit_warn', 'sensor_limit', 'group', 'rrd_type');
-        $sensorQuery = $this->applyDeviceFilter($sensorQuery, $filters['device_ids']);
+        $sensorQuery = $this->applyDeviceFilter($sensorQuery, $params['device_ids']);
         foreach ($sensorQuery->cursor() as $s) {
             $dev = $devices->get($s->device_id);
             $device_hostname = $dev ? $this->escapeLabel((string) $dev->hostname) : '';

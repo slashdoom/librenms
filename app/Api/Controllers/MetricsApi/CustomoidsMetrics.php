@@ -14,15 +14,28 @@ class CustomoidsMetrics
     {
         $lines = [];
 
-        // Parse filters
-        $filters = $this->parseDeviceFilters($request);
+        // Parse request parameters
+        $params = $this->parseMetricsParams($request);
 
         // Gather global metrics
-        $totalQ = Customoid::query();
-        $total = $this->applyDeviceFilter($totalQ, $filters['device_ids'])->count();
+        $total_all = Customoid::query()->count();
 
         // Append global metrics
-        $this->appendMetricBlock($lines, 'librenms_customoids_total', 'Total number of customoids', 'gauge', ["librenms_customoids_total {$total}"]);
+        $this->appendMetricBlock($lines, 'librenms_customoids_total', 'Total number of customoids in the system', 'gauge', "librenms_customoids_total {$total_all}");
+
+        // Return early if only global metrics are requested (default behavior)
+        if (!$this->shouldIncludeDeviceMetrics($params)) {
+            return implode("\n", $lines) . "\n";
+        }
+
+        // Calculate scraped total (what's actually included in this response)
+        $total_scraped = $total_all;
+        if ($params['device_ids'] !== null) {
+            $total_scraped = $this->applyDeviceFilter(Customoid::query(), $params['device_ids'])->count();
+        }
+
+        // Append scraped metrics
+        $this->appendMetricBlock($lines, 'librenms_customoids_total_scraped', 'Number of customoids included in this scrape', 'gauge', "librenms_customoids_total_scraped {$total_scraped}");
 
         // Prepare per-customoid metrics arrays grouped by datatype
         $gauge_value_lines = [];
@@ -33,12 +46,12 @@ class CustomoidsMetrics
         $counter_limit_crit_lines = [];
 
         $deviceIdsQuery = Customoid::select('device_id')->distinct();
-        $deviceIdsQuery = $this->applyDeviceFilter($deviceIdsQuery, $filters['device_ids']);
+        $deviceIdsQuery = $this->applyDeviceFilter($deviceIdsQuery, $params['device_ids']);
         $deviceIds = $deviceIdsQuery->pluck('device_id');
         $devices = Device::select('device_id', 'hostname', 'sysName', 'type')->whereIn('device_id', $deviceIds)->get()->keyBy('device_id');
 
         $coQuery = Customoid::select('customoid_id', 'device_id', 'customoid_descr', 'customoid_current', 'customoid_multiplier', 'customoid_divisor', 'customoid_limit_warn', 'customoid_limit', 'customoid_datatype');
-        $coQuery = $this->applyDeviceFilter($coQuery, $filters['device_ids']);
+        $coQuery = $this->applyDeviceFilter($coQuery, $params['device_ids']);
         foreach ($coQuery->cursor() as $c) {
             $dev = $devices->get($c->device_id);
             $device_hostname = $dev ? $this->escapeLabel((string) $dev->hostname) : '';

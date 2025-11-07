@@ -15,22 +15,34 @@ class AlertsMetrics
     {
         $lines = [];
 
-        // Parse filters
-        $filters = $this->parseDeviceFilters($request);
+        // Parse request parameters
+        $params = $this->parseMetricsParams($request);
 
-        // Gather global metrics
+        // Gather global metrics (always show system-wide counts)
         $total_rules = AlertRule::count();
-        $this->appendMetricBlock($lines, 'librenms_alerts_rules_total', 'Total number of alert rules', 'gauge', "librenms_alerts_rules_total {$total_rules}");
+        $this->appendMetricBlock($lines, 'librenms_alerts_rules_total', 'Total number of alert rules in the system', 'gauge', "librenms_alerts_rules_total {$total_rules}");
 
-        $alertsQ = Alert::query();
-        $alertsQ = $this->applyDeviceFilter($alertsQ, $filters['device_ids']);
-        $total_alerts = $alertsQ->count();
-        $this->appendMetricBlock($lines, 'librenms_alerts_total', 'Total number of alerts rows', 'gauge', "librenms_alerts_total {$total_alerts}");
+        $total_alerts_all = Alert::query()->count();
+
+        $this->appendMetricBlock($lines, 'librenms_alerts_total', 'Total number of alert rows in the system', 'gauge', "librenms_alerts_total {$total_alerts_all}");
+        
+        // Return early if only global metrics are requested (default behavior)
+        if (!$this->shouldIncludeDeviceMetrics($params)) {
+            return implode("\n", $lines) . "\n";
+        }
+        
+        $total_alerts_scraped = $total_alerts_all;
+        if ($params['device_ids'] !== null) {
+            $total_alerts_scraped = $this->applyDeviceFilter(Alert::query(), $params['device_ids'])->count();
+        }
+        $this->appendMetricBlock($lines, 'librenms_alerts_total_scraped', 'Number of alert rows included in this scrape', 'gauge', "librenms_alerts_total_scraped {$total_alerts_scraped}");
 
         // Alerts by state
         $state_lines = [];
         $statesQ = Alert::select('state', DB::raw('count(*) as cnt'))->groupBy('state');
-        $statesQ = $this->applyDeviceFilter($statesQ, $filters['device_ids']);
+        if ($params['include_devices'] && $params['device_ids'] !== null) {
+            $statesQ = $this->applyDeviceFilter($statesQ, $params['device_ids']);
+        }
         $states = $statesQ->get();
         /** @var \stdClass $s */
         foreach ($states as $s) {
@@ -49,14 +61,22 @@ class AlertsMetrics
         $this->appendMetricBlock($lines, 'librenms_alerts_rules_by_severity', 'Number of alert rules by severity', 'gauge', $severity_lines);
 
         // Active alert counts
-        $activeQ = Alert::where('state', 1);
-        $active = $this->applyDeviceFilter($activeQ, $filters['device_ids'])->count();
-        $this->appendMetricBlock($lines, 'librenms_alerts_active', 'Number of active alerts', 'gauge', "librenms_alerts_active {$active}");
+        $active_all = Alert::where('state', 1)->count();
+        $active_scraped = $active_all;
+        if ($params['include_devices'] && $params['device_ids'] !== null) {
+            $active_scraped = $this->applyDeviceFilter(Alert::where('state', 1), $params['device_ids'])->count();
+        }
+        $this->appendMetricBlock($lines, 'librenms_alerts_active', 'Number of active alerts (system-wide)', 'gauge', "librenms_alerts_active {$active_all}");
+        $this->appendMetricBlock($lines, 'librenms_alerts_active_scraped', 'Number of active alerts included in this scrape', 'gauge', "librenms_alerts_active_scraped {$active_scraped}");
 
         // Acknowledged alert counts
-        $ackQ = Alert::where('state', 2);
-        $ack = $this->applyDeviceFilter($ackQ, $filters['device_ids'])->count();
-        $this->appendMetricBlock($lines, 'librenms_alerts_acknowledged', 'Number of acknowledged alerts', 'gauge', "librenms_alerts_acknowledged {$ack}");
+        $ack_all = Alert::where('state', 2)->count();
+        $ack_scraped = $ack_all;
+        if ($params['include_devices'] && $params['device_ids'] !== null) {
+            $ack_scraped = $this->applyDeviceFilter(Alert::where('state', 2), $params['device_ids'])->count();
+        }
+        $this->appendMetricBlock($lines, 'librenms_alerts_acknowledged', 'Number of acknowledged alerts (system-wide)', 'gauge', "librenms_alerts_acknowledged {$ack_all}");
+        $this->appendMetricBlock($lines, 'librenms_alerts_acknowledged_scraped', 'Number of acknowledged alerts included in this scrape', 'gauge', "librenms_alerts_acknowledged_scraped {$ack_scraped}");
 
         return implode("\n", $lines) . "\n";
     }

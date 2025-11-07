@@ -14,15 +14,28 @@ class PortsMetrics
     {
         $lines = [];
 
-        // Parse filters
-        $filters = $this->parseDeviceFilters($request);
+        // Parse request parameters
+        $params = $this->parseMetricsParams($request);
 
         // Gather global metrics
-        $totalQ = Port::query();
-        $total = $this->applyDeviceFilter($totalQ, $filters['device_ids'])->count();
+        $total_all = Port::query()->count();
 
         // Append global metrics
-        $this->appendMetricBlock($lines, 'librenms_ports_total', 'Total number of ports', 'gauge', "librenms_ports_total {$total}");
+        $this->appendMetricBlock($lines, 'librenms_ports_total', 'Total number of ports in the system', 'gauge', "librenms_ports_total {$total_all}");
+
+        // Return early if only global metrics are requested (default behavior)
+        if (!$this->shouldIncludeDeviceMetrics($params)) {
+            return implode("\n", $lines) . "\n";
+        }
+
+        // Calculate scraped total (what's actually included in this response)
+        $total_scraped = $total_all;
+        if ($params['device_ids'] !== null) {
+            $total_scraped = $this->applyDeviceFilter(Port::query(), $params['device_ids'])->count();
+        }
+
+        // Append scraped metrics
+        $this->appendMetricBlock($lines, 'librenms_ports_total_scraped', 'Number of ports included in this scrape', 'gauge', "librenms_ports_total_scraped {$total_scraped}");
 
         // Prepare per-port metric arrays
         $admin_lines = [];
@@ -37,13 +50,13 @@ class PortsMetrics
 
         // Gather device info mapping only for referenced devices
         $deviceIdsQuery = Port::select('device_id')->distinct();
-        $deviceIdsQuery = $this->applyDeviceFilter($deviceIdsQuery, $filters['device_ids']);
+        $deviceIdsQuery = $this->applyDeviceFilter($deviceIdsQuery, $params['device_ids']);
         $deviceIds = $deviceIdsQuery->pluck('device_id');
         $devices = Device::select('device_id', 'hostname', 'sysName', 'type')->whereIn('device_id', $deviceIds)->get()->keyBy('device_id');
 
         // Gather per-port metrics
         $portQuery = Port::select('port_id', 'device_id', 'ifName', 'ifDescr', 'ifIndex', 'ifType', 'ifAlias', 'ifAdminStatus', 'ifOperStatus', 'ifSpeed', 'ifInOctets', 'ifOutOctets', 'ifInUcastPkts', 'ifOutUcastPkts', 'ifInErrors', 'ifOutErrors', 'poll_time');
-        $portQuery = $this->applyDeviceFilter($portQuery, $filters['device_ids']);
+        $portQuery = $this->applyDeviceFilter($portQuery, $params['device_ids']);
         foreach ($portQuery->cursor() as $p) {
             $dev = $devices->get($p->device_id);
             $device_hostname = $dev ? $this->escapeLabel((string) $dev->hostname) : '';

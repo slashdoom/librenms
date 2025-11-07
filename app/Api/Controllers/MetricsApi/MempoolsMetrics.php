@@ -14,15 +14,28 @@ class MempoolsMetrics
     {
         $lines = [];
 
-        // Parse filters
-        $filters = $this->parseDeviceFilters($request);
+        // Parse request parameters
+        $params = $this->parseMetricsParams($request);
 
         // Gather global metrics
-        $totalQ = Mempool::query();
-        $total = $this->applyDeviceFilter($totalQ, $filters['device_ids'])->count();
+        $total_all = Mempool::query()->count();
 
         // Append global metrics
-        $this->appendMetricBlock($lines, 'librenms_mempools_total', 'Total number of mempools', 'gauge', "librenms_mempools_total {$total}");
+        $this->appendMetricBlock($lines, 'librenms_mempools_total', 'Total number of mempools in the system', 'gauge', "librenms_mempools_total {$total_all}");
+
+        // Return early if only global metrics are requested (default behavior)
+        if (!$this->shouldIncludeDeviceMetrics($params)) {
+            return implode("\n", $lines) . "\n";
+        }
+
+        // Calculate scraped total (what's actually included in this response)
+        $total_scraped = $total_all;
+        if ($params['device_ids'] !== null) {
+            $total_scraped = $this->applyDeviceFilter(Mempool::query(), $params['device_ids'])->count();
+        }
+
+        // Append scraped metrics
+        $this->appendMetricBlock($lines, 'librenms_mempools_total_scraped', 'Number of mempools included in this scrape', 'gauge', "librenms_mempools_total_scraped {$total_scraped}");
 
         // Prepare per-mempool arrays
         $used_lines = [];
@@ -32,12 +45,12 @@ class MempoolsMetrics
 
         // Gather device info mapping for labels (using helper)
         $deviceIdsQuery = Mempool::select('device_id')->distinct();
-        $deviceIdsQuery = $this->applyDeviceFilter($deviceIdsQuery, $filters['device_ids']);
+        $deviceIdsQuery = $this->applyDeviceFilter($deviceIdsQuery, $params['device_ids']);
         $deviceIds = $deviceIdsQuery->pluck('device_id');
         $devices = $this->gatherDevicesForIds($deviceIds);
 
         $mpQuery = Mempool::select('mempool_id', 'device_id', 'mempool_descr', 'mempool_class', 'mempool_used', 'mempool_free', 'mempool_total', 'mempool_perc');
-        $mpQuery = $this->applyDeviceFilter($mpQuery, $filters['device_ids']);
+        $mpQuery = $this->applyDeviceFilter($mpQuery, $params['device_ids']);
         foreach ($mpQuery->cursor() as $m) {
             $dev = $devices->get($m->device_id);
             $labelsArr = [
